@@ -1,0 +1,17 @@
+# .gitignore
+
+# Python
+venv/
+*.pyc
+__pycache__/
+
+# Environment variables
+.env
+
+# Database
+golf_manager.db
+instance/
+
+# IDE / Editor specific
+.vscode/
+.idea/

@@ -1,0 +1,67 @@
+<!doctype html>
+<html lang="ko">
+  <head>
+    <!-- Required meta tags -->
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+
+    <!-- Bootstrap CSS -->
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet" integrity="sha384-QWTKZyjpPEjISv5WaRU9OFeRpok6YctnYmDr5pNlyT2bRjXh0JMhjY6hW+ALEwIH" crossorigin="anonymous">
+    <!-- Custom CSS (필요시) -->
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
+
+    <title>{% block title %}스크린 골프 예약 시스템{% endblock %}</title>
+  </head>
+  <body>
+    <!-- 내비게이션 바 (향후 추가) -->
+    <nav class="navbar navbar-expand-lg navbar-light bg-light mb-4">
+      <div class="container-fluid">
+        <a class="navbar-brand" href="/">골프 매니저</a>
+        <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarNav" aria-controls="navbarNav" aria-expanded="false" aria-label="Toggle navigation">
+          <span class="navbar-toggler-icon"></span>
+        </button>
+        <div class="collapse navbar-collapse" id="navbarNav">
+          <ul class="navbar-nav ms-auto">
+            <!-- 로그인/로그아웃 링크 (향후 추가) -->
+             <li class="nav-item">
+               <a class="nav-link" href="#">로그인</a>
+             </li>
+             <li class="nav-item">
+               <a class="nav-link" href="#">회원 등록(임시)</a>
+             </li>
+          </ul>
+        </div>
+      </div>
+    </nav>
+
+    <div class="container">
+        <!-- Flash 메시지 표시 (예: 로그인 성공/실패 알림) -->
+        {% with messages = get_flashed_messages(with_categories=true) %}
+          {% if messages %}
+            {% for category, message in messages %}
+              <div class="alert alert-{{ category }} alert-dismissible fade show" role="alert">
+                {{ message }}
+                <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+              </div>
+            {% endfor %}
+          {% endif %}
+        {% endwith %}
+
+        <!-- 메인 콘텐츠 블록 -->
+        {% block content %}{% endblock %}
+    </div>
+
+    <!-- 푸터 (향후 추가) -->
+    <footer class="mt-5 text-center text-muted">
+        <p>© 2025 Golf Manager</p>
+    </footer>
+
+    <!-- Bootstrap Bundle with Popper -->
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js" integrity="sha384-YvpcrYf0tY3lHB60NNkmXc5s9fDVZLESaAA55NDzOxhy9GkcIdslK1eN7N6jIeHz" crossorigin="anonymous"></script>
+    <!-- Custom JS (필요시) -->
+    <script src="{{ url_for('static', filename='js/main.js') }}"></script>
+
+    <!-- 페이지별 추가 스크립트 블록 -->
+    {% block scripts %}{% endblock %}
+  </body>
+</html>
