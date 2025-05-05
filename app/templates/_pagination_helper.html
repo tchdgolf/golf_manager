@@ -1,0 +1,36 @@
+{# app/templates/_pagination_helper.html #}
+{% macro render_pagination(pagination, endpoint, fragment='') %}
+  {% if pagination and pagination.pages > 1 %}
+    <nav aria-label="Page navigation">
+      <ul class="pagination justify-content-center">
+        {# Previous page link #}
+        <li class="page-item {% if not pagination.has_prev %}disabled{% endif %}">
+          <a class="page-link" href="{% if pagination.has_prev %}{{ url_for(endpoint, page=pagination.prev_num, **request.view_args) }}{{ fragment }}{% else %}#{% endif %}">«</a>
+        </li>
+
+        {# Page numbers #}
+        {% for page_num in pagination.iter_pages() %}
+          {% if page_num %}
+            {% if page_num != pagination.page %}
+              <li class="page-item">
+                <a class="page-link" href="{{ url_for(endpoint, page=page_num, **request.view_args) }}{{ fragment }}">{{ page_num }}</a>
+              </li>
+            {% else %}
+              <li class="page-item active" aria-current="page">
+                <span class="page-link">{{ page_num }} <span class="visually-hidden">(current)</span></span>
+              </li>
+            {% endif %}
+          {% else %}
+            {# Ellipsis for skipped pages #}
+            <li class="page-item disabled"><span class="page-link">…</span></li>
+          {% endif %}
+        {% endfor %}
+
+        {# Next page link #}
+        <li class="page-item {% if not pagination.has_next %}disabled{% endif %}">
+          <a class="page-link" href="{% if pagination.has_next %}{{ url_for(endpoint, page=pagination.next_num, **request.view_args) }}{{ fragment }}{% else %}#{% endif %}">»</a>
+        </li>
+      </ul>
+    </nav>
+  {% endif %}
+{% endmacro %}

@@ -62,6 +62,8 @@ def create_app(config_name='default'):
     # 블루프린트 등록
     from .routes.auth import bp as auth_bp
     app.register_blueprint(auth_bp, url_prefix='/auth')
+    from .routes.admin import bp as admin_bp # admin 블루프린트 임포트
+    app.register_blueprint(admin_bp) # admin 블루프린트 등록 (url_prefix는 admin/__init__.py 에 이미 정의됨
 
     # 임시 메인 라우트
     @app.route('/')
