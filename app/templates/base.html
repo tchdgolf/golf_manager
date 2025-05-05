@@ -29,9 +29,9 @@
                             환영합니다, {{ current_user.name }}님!
                         </span>
                     </li>
-                    {# 마이페이지 링크 (향후 구현) #}
+                    {# 마이페이지 링크 (향후 구현) - 임시 비활성화 #}
                     <li class="nav-item">
-                        <a class="nav-link" href="{{ url_for('user.my_page') }}">마이페이지</a> {# 'user.my_page' 는 나중에 만들 라우트 #}
+                        <a class="nav-link disabled" href="#" aria-disabled="true">마이페이지 (준비중)</a>
                     </li>
                     {% if current_user.is_admin %}
                         {# 관리자 메뉴 링크들 (향후 구현) #}

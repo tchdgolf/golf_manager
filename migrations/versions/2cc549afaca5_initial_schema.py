@@ -1,8 +1,8 @@
-"""Add Pro, Booth models and update User model fields
+"""Initial schema
 
-Revision ID: 49bcb34be70d
+Revision ID: 2cc549afaca5
 Revises: 
-Create Date: 2025-05-05 19:02:21.511919
+Create Date: 2025-05-05 19:57:55.918122
 
 """
 from alembic import op
@@ -10,7 +10,7 @@ import sqlalchemy as sa
 
 
 # revision identifiers, used by Alembic.
-revision = '49bcb34be70d'
+revision = '2cc549afaca5'
 down_revision = None
 branch_labels = None
 depends_on = None
