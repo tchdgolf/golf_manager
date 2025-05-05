@@ -1,0 +1,16 @@
+{% extends "base.html" %}
+{% import "bootstrap/wtf.html" as wtf %}
+
+{% block title %}회원 등록 - {{ super() }}{% endblock %}
+
+{% block content %}
+<div class="row justify-content-center">
+    <div class="col-md-8">
+        <h2 class="text-center mb-4">회원 등록 (관리자)</h2>
+        <div class="alert alert-info" role="alert">
+          새 회원을 등록합니다. 초기 비밀번호는 '0000'으로 자동 설정됩니다.
+        </div>
+        {{ wtf.quick_form(form, button_map={'submit': 'primary'}) }}
+    </div>
+</div>
+{% endblock %}

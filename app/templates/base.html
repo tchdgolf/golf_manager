@@ -21,15 +21,47 @@
           <span class="navbar-toggler-icon"></span>
         </button>
         <div class="collapse navbar-collapse" id="navbarNav">
-          <ul class="navbar-nav ms-auto">
-            <!-- 로그인/로그아웃 링크 (향후 추가) -->
-             <li class="nav-item">
-               <a class="nav-link" href="#">로그인</a>
-             </li>
-             <li class="nav-item">
-               <a class="nav-link" href="#">회원 등록(임시)</a>
-             </li>
-          </ul>
+            <ul class="navbar-nav ms-auto">
+                {% if current_user.is_authenticated %}
+                    {# 로그인된 사용자 #}
+                    <li class="nav-item">
+                        <span class="navbar-text">
+                            환영합니다, {{ current_user.name }}님!
+                        </span>
+                    </li>
+                    {# 마이페이지 링크 (향후 구현) #}
+                    <li class="nav-item">
+                        <a class="nav-link" href="{{ url_for('user.my_page') }}">마이페이지</a> {# 'user.my_page' 는 나중에 만들 라우트 #}
+                    </li>
+                    {% if current_user.is_admin %}
+                        {# 관리자 메뉴 링크들 (향후 구현) #}
+                        <li class="nav-item dropdown">
+                          <a class="nav-link dropdown-toggle" href="#" id="navbarDropdownAdmin" role="button" data-bs-toggle="dropdown" aria-expanded="false">
+                            관리
+                          </a>
+                          <ul class="dropdown-menu dropdown-menu-end" aria-labelledby="navbarDropdownAdmin">
+                            <li><a class="dropdown-item" href="{{ url_for('auth.register') }}">신규 회원 등록</a></li>
+                            <li><a class="dropdown-item" href="#">프로 관리</a></li> {# 향후 구현 #}
+                            <li><a class="dropdown-item" href="#">타석 관리</a></li> {# 향후 구현 #}
+                            <li><a class="dropdown-item" href="#">이용권 관리</a></li> {# 향후 구현 #}
+                            <li><hr class="dropdown-divider"></li>
+                            <li><a class="dropdown-item" href="#">관리자 대시보드</a></li> {# 향후 구현 #}
+                          </ul>
+                        </li>
+                    {% endif %}
+                    <li class="nav-item">
+                        <a class="nav-link" href="{{ url_for('auth.logout') }}">로그아웃</a>
+                    </li>
+                {% else %}
+                    {# 로그인되지 않은 사용자 #}
+                    {# <li class="nav-item">
+                        <a class="nav-link" href="{{ url_for('auth.register') }}">회원가입(임시)</a> {# 관리자 등록 방식이므로 이 링크는 제거 #}
+                    </li> #}
+                    <li class="nav-item">
+                        <a class="nav-link" href="{{ url_for('auth.login') }}">로그인</a>
+                    </li>
+                {% endif %}
+            </ul>
         </div>
       </div>
     </nav>
