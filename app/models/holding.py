@@ -21,7 +21,10 @@ class Holding(db.Model):
     # holding_obj.ticket 으로 접근도 가능해짐 (Ticket 모델의 backref 덕분에)
 
     # 만약 Holding 객체에서 .ticket 속성으로 Ticket 객체에 접근해야 한다면, backref 없이 관계 정의
-    ticket = db.relationship('Ticket') # backref 없이 정의
+    ticket = db.relationship(
+        'Ticket',
+        back_populates='holdings' # Ticket 모델의 'holdings' 속성과 연결됨을 명시
+    )
 
 
     def __init__(self, ticket_id, start_date, end_date, reason=None):

@@ -35,10 +35,15 @@ class Ticket(db.Model):
     updated_at = db.Column(db.DateTime, default=db.func.current_timestamp(), onupdate=db.func.current_timestamp())
 
     # Relationships
-    user = db.relationship('User', backref=db.backref('tickets', lazy='dynamic'))
-    ticket_template = db.relationship('TicketTemplate', backref=db.backref('issued_tickets', lazy='dynamic'))
-    pro = db.relationship('Pro', backref=db.backref('assigned_tickets', lazy='dynamic'))
-    holdings = db.relationship('Holding', backref='ticket', lazy='dynamic', cascade="all, delete-orphan")
+    user = db.relationship('User', backref=db.backref('tickets', lazy='dynamic')) # User와는 backref 유지 가능
+    ticket_template = db.relationship('TicketTemplate', backref=db.backref('issued_tickets', lazy='dynamic')) # Template과도 backref 유지 가능
+    pro = db.relationship('Pro', backref=db.backref('assigned_tickets', lazy='dynamic')) # Pro와도 backref 유지 가능
+    holdings = db.relationship(
+        'Holding',
+        back_populates='ticket', # Holding 모델의 'ticket' 속성과 연결됨을 명시
+        lazy='dynamic',
+        cascade="all, delete-orphan"
+    )
     # bookings_primary = db.relationship('Booking', foreign_keys='Booking.primary_ticket_id', backref='primary_for_ticket', lazy='dynamic') # 예약 시 이 티켓이 주 사용 티켓
     # bookings_taseok = db.relationship('Booking', foreign_keys='Booking.used_taseok_ticket_id', backref='used_for_taseok', lazy='dynamic') # 예약 시 타석 차감용으로 사용
     # bookings_lesson = db.relationship('Booking', foreign_keys='Booking.used_lesson_ticket_id', backref='used_for_lesson', lazy='dynamic') # 예약 시 레슨 차감용으로 사용
