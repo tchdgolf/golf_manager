@@ -1,10 +1,12 @@
 # app/services/booking_service.py
 import datetime
 from app.extensions import db
-from app.models import User, Booth, Ticket, Booking, Pro # 필요한 모델 임포트
-from app.models.enums import BookingType, BookingStatus, BoothStatus, TicketCategory
+from app.models import User, Booth, Ticket, Booking, Pro, TicketTemplate
+from app.models.enums import BookingType, BookingStatus, BoothStatus
+from app.models.ticket_template import TicketCategory
 from sqlalchemy import and_, or_
-from .holding_service import recalculate_master_expiry_date # 최종 만료일 재계산 함수 임포트
+from .holding_service import recalculate_master_expiry_date
+
 
 # --- 예약 가능 여부 확인 관련 함수 ---
 

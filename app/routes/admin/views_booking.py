@@ -32,16 +32,20 @@ def list_bookings():
 def create_booking_form():
     form = BookingForm() # 폼 객체 생성
 
-    # SelectField choices 동적 로딩
-    form.user_id.choices = [('', '--- 회원 선택 ---')] + [(u.id, f"{u.name} ({u.phone})") for u in User.query.order_by(User.name).all()]
-    form.booth_id.choices = [('', '--- 타석 선택 ---')] + [(b.id, b.name) for b in Booth.query.filter_by(is_available=True).order_by(Booth.name).all()] # 예약 가능한 타석만
-    form.pro_id.choices = [('', '--- 프로 선택 (레슨 시) ---')] + [(p.id, p.name) for p in Pro.query.order_by(Pro.name).all()]
+    users = User.query.order_by(User.name).all()
+    booths = Booth.query.filter_by(is_available=True).order_by(Booth.name).all()
+    pros = Pro.query.order_by(Pro.name).all()
+
+    # SelectField choices 동적 할당 (이제 users, booths, pros 사용 가능)
+    form.user_id.choices = [('', '--- 회원 선택 ---')] + [(u.id, f"{u.name} ({u.phone})") for u in users]
+    form.booth_id.choices = [('', '--- 타석 선택 ---')] + [(b.id, b.name) for b in booths]
+    form.pro_id.choices = [('', '--- 프로 선택 (레슨 시) ---')] + [(p.id, p.name) for p in pros]
 
     # booking_type choices는 폼 정의에서 이미 설정됨
 
     return render_template('booking/create_booking_form.html',
                            title="관리자 예약 생성",
-                           form=form) # 폼 객체 전달
+                           form=form) # 폼 객체만 전달
 
 # 관리자 예약 생성 처리 (POST)
 @bp.route('/bookings/create', methods=['POST'])

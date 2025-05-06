@@ -8,16 +8,13 @@ from app.models.enums import BoothSystemType, BookingType # Enum 임포트
 from app.models.ticket_template import TicketCategory 
 
 
-
-
-
 def coerce_int_or_none(value):
     if value == '':
         return None
     try:
         return int(value)
     except ValueError:
-        return None # 또는 raise ValidationError('유효한 숫자가 아닙니다.')
+        return None
 
 
 class BoothForm(FlaskForm):
@@ -287,20 +284,17 @@ class HoldingForm(FlaskForm):
 
 class BookingForm(FlaskForm):
     """관리자 예약 생성/수정 폼"""
-    user_id = SelectField('회원', coerce=int, validators=[DataRequired(message="회원을 선택해주세요.")])
-    booth_id = SelectField('타석', coerce=int, validators=[DataRequired(message="타석을 선택해주세요.")])
+    # coerce 함수 적용
+    user_id = SelectField('회원', coerce=coerce_int_or_none, validators=[DataRequired(message="회원을 선택해주세요.")])
+    booth_id = SelectField('타석', coerce=coerce_int_or_none, validators=[DataRequired(message="타석을 선택해주세요.")])
     booking_type = SelectField('예약 유형', coerce=BookingType, validators=[DataRequired()],
                                choices=[(t, t.value) for t in BookingType])
-    pro_id = SelectField('담당 프로 (레슨 예약 시)', coerce=coerce_int_or_none, validators=[Optional()]) # coerce 함수 재사용
+    # coerce 함수 적용
+    pro_id = SelectField('담당 프로 (레슨 예약 시)', coerce=coerce_int_or_none, validators=[Optional()])
 
     # 날짜와 시간을 함께 입력받는 필드
     start_time = DateTimeLocalField('시작 시간', format='%Y-%m-%dT%H:%M', validators=[DataRequired()], widget=DateTimeLocalInput())
-    # 종료 시간 또는 이용 시간(duration)을 입력받는 방식 선택 가능
-    # 예: 종료 시간 입력
     end_time = DateTimeLocalField('종료 시간', format='%Y-%m-%dT%H:%M', validators=[DataRequired()], widget=DateTimeLocalInput())
-    # 예: 이용 시간(분) 입력
-    # duration = IntegerField('이용 시간 (분)', validators=[DataRequired(), NumberRange(min=30)]) # 예: 최소 30분
-
     memo = TextAreaField('메모 (선택 사항)')
     submit = SubmitField('예약 생성')
 

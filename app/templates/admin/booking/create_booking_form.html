@@ -12,10 +12,10 @@
 
     <div class="row">
         <div class="col-md-6">
-            {{ wtf.form_field(form.user_id, choices=[('', '--- 회원 선택 ---')] + [(u.id, u.name + ' (' + u.phone + ')') for u in users]) }}
+            {{ wtf.form_field(form.user_id) }}
         </div>
         <div class="col-md-6">
-            {{ wtf.form_field(form.booth_id, choices=[('', '--- 타석 선택 ---')] + [(b.id, b.name) for b in booths]) }}
+            {{ wtf.form_field(form.booth_id) }}
         </div>
     </div>
      <div class="row mb-3">
@@ -23,7 +23,7 @@
             {{ wtf.form_field(form.booking_type, id="booking_type_select") }}
         </div>
         <div class="col-md-6" id="pro_select_div"> {# 프로 선택 필드 숨김/표시용 div #}
-            {{ wtf.form_field(form.pro_id, choices=[('', '--- 프로 선택 (레슨 시) ---')] + [(p.id, p.name) for p in pros]) }}
+            {{ wtf.form_field(form.pro_id) }}
         </div>
     </div>
     <div class="row mb-3">
