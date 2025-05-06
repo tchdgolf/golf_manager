@@ -105,6 +105,90 @@ def add_new_holding(ticket_id: int, start_date: datetime.date, end_date: datetim
         print(f"Error adding holding: {e}") # 로깅 라이브러리 사용 권장
         return False, f"홀딩 추가 중 오류가 발생했습니다: {e}", None
 
+def update_existing_holding(holding_id: int, new_start_date: datetime.date, new_end_date: datetime.date, new_reason: str = None) -> tuple[bool, str]:
+    """
+    기존 홀딩 정보를 수정하고 관련 데이터를 업데이트합니다.
+
+    :param holding_id: 수정할 홀딩 ID
+    :param new_start_date: 새로운 홀딩 시작일
+    :param new_end_date: 새로운 홀딩 종료일
+    :param new_reason: 새로운 홀딩 사유
+    :return: (성공 여부, 메시지)
+    """
+    holding = db.session.get(Holding, holding_id)
+    if not holding:
+        return False, "해당 홀딩 정보를 찾을 수 없습니다."
+
+    ticket = holding.ticket
+    if not ticket:
+        return False, "홀딩과 연결된 이용권을 찾을 수 없습니다."
+
+    # 수정 전 홀딩 기간 기록
+    original_duration = holding.duration_days
+
+    # --- ▼ 유효성 검사 ▼ ---
+    # 1. 수정하려는 기간 유효성 검사
+    if new_end_date < new_start_date:
+        return False, "홀딩 종료일은 시작일보다 이전일 수 없습니다."
+
+    # 2. 티켓 유효 기간 내 검사 (add_new_holding과 동일)
+    if new_start_date < ticket.start_date:
+        return False, f"홀딩 시작일({new_start_date})은 이용권 시작일({ticket.start_date}) 이후여야 합니다."
+    # 만료일 비교는 좀 더 신중해야 함. 수정 시에는 현재 만료일을 기준으로 비교하는 것이 맞을 수 있음.
+    if ticket.expiry_date and new_end_date > ticket.expiry_date + datetime.timedelta(days=original_duration): # 복구될 만료일보다 뒤인지? 복잡.. 일단 현재 기준
+        # 홀딩 기간 변경으로 인해 최종 만료일이 현재 티켓 만료일을 넘어서는 경우를 어떻게 처리할지 정책 필요.
+        # 여기서는 일단 현재 만료일 + 원래 홀딩 기간을 넘어서지 못하게 제한 (보수적 접근)
+        pass # 일단 검증 보류
+
+    # 3. 다른 홀딩과의 겹침 검사 (수정 대상 홀딩 제외)
+    overlapping_holding = Holding.query.filter(
+        Holding.ticket_id == ticket.id,
+        Holding.id != holding_id, # 자기 자신은 제외
+        Holding.end_date >= new_start_date,
+        Holding.start_date <= new_end_date
+    ).first()
+    if overlapping_holding:
+        return False, f"수정하려는 기간 ({new_start_date} ~ {new_end_date})이 다른 홀딩(ID: {overlapping_holding.id})과 겹칩니다."
+    # --- ▲ 유효성 검사 끝 ▲ ---
+
+    try:
+        # 홀딩 정보 업데이트
+        holding.start_date = new_start_date
+        holding.end_date = new_end_date
+        holding.reason = new_reason
+        holding.calculate_duration() # 새 기간으로 duration_days 재계산
+        new_duration = holding.duration_days
+
+        if new_duration <= 0:
+             return False, "수정된 홀딩 기간은 최소 1일 이상이어야 합니다."
+
+        # 티켓 만료일 업데이트
+        if ticket.expiry_date:
+            # 1. 원래 홀딩 기간만큼 만료일을 먼저 복구
+            expiry_date_before_update = ticket.expiry_date - datetime.timedelta(days=original_duration)
+            # 2. 새로운 홀딩 기간만큼 다시 연장
+            ticket.expiry_date = expiry_date_before_update + datetime.timedelta(days=new_duration)
+        else:
+            # 만료일 없는 티켓은 변경 없음
+            pass
+
+        # 사용자 최종 만료일 재계산
+        user = ticket.user
+        if user:
+            recalculate_master_expiry_date(user)
+            db.session.add(user)
+
+        db.session.add(holding) # 변경된 홀딩 정보
+        db.session.add(ticket) # 변경된 티켓 정보
+        db.session.commit()
+
+        return True, f"홀딩(ID: {holding_id}) 정보가 성공적으로 수정되었습니다."
+
+    except Exception as e:
+        db.session.rollback()
+        print(f"Error updating holding: {e}")
+        return False, f"홀딩 수정 중 오류가 발생했습니다: {e}"
+
 
 def delete_existing_holding(holding_id: int) -> tuple[bool, str]:
     """
