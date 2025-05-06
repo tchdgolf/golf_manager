@@ -14,7 +14,17 @@ class BoothStatus(enum.Enum):
     OFFLINE = "사용 불가" # 일시적 비활성화
     MAINTENANCE = "점검중"
 
-# 다른 Enum들도 필요시 여기에 추가합니다.
-# class BookingType(enum.Enum): ...
-# class BookingStatus(enum.Enum): ...
-# class TicketType(enum.Enum): ... # (템플릿 방식으로 변경되어 사용 안 할 수 있음)
+# --- ▼ 예약 관련 Enum 추가 ▼ ---
+class BookingType(enum.Enum):
+    """예약 유형"""
+    TASEOK_ONLY = "타석 이용" # 일반 타석 예약 (레슨 없음)
+    LESSON = "레슨 예약"     # 레슨 포함 예약
+
+class BookingStatus(enum.Enum):
+    """예약 상태"""
+    SCHEDULED = "예약 확정" # 예정된 예약
+    COMPLETED = "이용 완료" # 정상 이용 완료
+    CANCELLED_USER = "사용자 취소" # 사용자가 취소
+    CANCELLED_ADMIN = "관리자 취소" # 관리자가 취소
+    NO_SHOW = "노쇼"        # 예약 시간 미방문
+    # CHECKED_IN = "체크인" # 체크인 기능 추가 시
