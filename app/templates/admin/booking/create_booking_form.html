@@ -22,16 +22,21 @@
         <div class="col-md-6">
             {{ wtf.form_field(form.booking_type, id="booking_type_select") }}
         </div>
-        <div class="col-md-6" id="pro_select_div"> {# 프로 선택 필드 숨김/표시용 div #}
-            {{ wtf.form_field(form.pro_id) }}
+        <div class="col-md-6 row gx-2" id="lesson_fields_div" style="display: none;">
+            <div class="col-auto flex-fill"> {# 프로 선택 #}
+                 {{ wtf.form_field(form.pro_id) }}
+            </div>
+            <div class="col-auto" style="width: 120px;"> {# 레슨 횟수 선택 #}
+                {{ wtf.form_field(form.lesson_count_to_use) }}
+            </div>
         </div>
     </div>
     <div class="row mb-3">
          <div class="col-md-6">
-            {{ wtf.form_field(form.start_time) }}
+            {{ wtf.form_field(form.start_time, step="600") }}
         </div>
         <div class="col-md-6">
-             {{ wtf.form_field(form.end_time) }}
+            {{ wtf.form_field(form.end_time, step="600") }}
         </div>
     </div>
     {{ wtf.form_field(form.memo, rows=3) }}
@@ -51,27 +56,85 @@
     document.addEventListener('DOMContentLoaded', function() {
         const bookingTypeSelect = document.getElementById('booking_type_select');
         const proSelectDiv = document.getElementById('pro_select_div');
+        const lessonFieldsDiv = document.getElementById('lesson_fields_div'); // 그룹 div 선택
         const proSelectField = document.getElementById('pro_id'); // pro_id 필드의 실제 ID 확인 필요
+        const lessonCountField = document.getElementById('lesson_count_to_use'); // 횟수 필드
+        const startTimeField = document.getElementById('start_time'); // 시작 시간 필드 ID 확인 필요
+        const endTimeField = document.getElementById('end_time');     // 종료 시간 필드 ID 확인 필요
 
+
+        function toggleLessonFields() { // 함수 이름 변경
+            if (bookingTypeSelect && lessonFieldsDiv) {
+                if (bookingTypeSelect.value === "{{ BookingType.LESSON.value }}") {
+                    lessonFieldsDiv.style.display = 'flex'; // flex 로 변경 (row 내부 요소 정렬)
+                    if(proSelectField) proSelectField.required = true;
+                    if(lessonCountField) lessonCountField.required = true; // 횟수도 필수로? (정책 결정)
+                } else {
+                    lessonFieldsDiv.style.display = 'none';
+                     if(proSelectField) { proSelectField.required = false; proSelectField.value = ''; }
+                     if(lessonCountField) { lessonCountField.required = false; lessonCountField.value = '1'; } // 비활성화 시 기본값 1로?
+                }
+            }
+        }
+        
         function toggleProSelect() {
             if (bookingTypeSelect && proSelectDiv) {
-                // BookingType.LESSON 의 name 이 'LESSON' 이라고 가정
-                if (bookingTypeSelect.value === 'LESSON') {
+                // 수정: Enum의 value 값과 비교
+                if (bookingTypeSelect.value === "{{ BookingType.LESSON.value }}") { // "레슨 예약" 과 비교
                     proSelectDiv.style.display = 'block';
-                    if(proSelectField) proSelectField.required = true; // 필수 입력으로 설정 (선택적)
+                    if(proSelectField) proSelectField.required = true;
                 } else {
                     proSelectDiv.style.display = 'none';
                      if(proSelectField) {
-                         proSelectField.required = false; // 필수 해제
+                         proSelectField.required = false;
                          proSelectField.value = ''; // 값 비우기
                      }
                 }
             }
         }
 
+        // 시작 시간 변경 시 종료 시간 자동 설정 함수
+        function setDefaultEndTime() {
+            if (startTimeField && endTimeField && startTimeField.value) {
+                try {
+                    const startTime = new Date(startTimeField.value);
+                    // 70분 추가 (밀리초 단위)
+                    startTime.setMinutes(startTime.getMinutes() + 70);
+
+                    // YYYY-MM-DDTHH:mm 형식으로 변환
+                    const year = startTime.getFullYear();
+                    const month = (startTime.getMonth() + 1).toString().padStart(2, '0');
+                    const day = startTime.getDate().toString().padStart(2, '0');
+                    const hours = startTime.getHours().toString().padStart(2, '0');
+                    const minutes = startTime.getMinutes().toString().padStart(2, '0');
+                    endTimeField.value = `${year}-${month}-${day}T${hours}:${minutes}`;
+                } catch (e) {
+                    console.error("Error setting default end time:", e);
+                    endTimeField.value = ''; // 오류 시 비우기
+                }
+            } else if (endTimeField) {
+                endTimeField.value = ''; // 시작 시간 없으면 비우기
+            }
+        }
+        
+        // ... (이벤트 리스너 연결 등 동일) ...
+        if (bookingTypeSelect) {
+            bookingTypeSelect.addEventListener('change', toggleLessonFields);
+            toggleLessonFields();
+        }
+        
         if (bookingTypeSelect) {
             bookingTypeSelect.addEventListener('change', toggleProSelect);
-            toggleProSelect(); // 초기 상태 설정
+            toggleProSelect();
+        } else {
+            console.error("Booking type select field not found!"); // ID 확인용 로그
+        }
+
+        // 시작 시간 필드에 이벤트 리스너 추가
+        if (startTimeField) {
+            startTimeField.addEventListener('change', setDefaultEndTime);
+            // 페이지 로드 시 (수정 페이지 등) 기존 값이 있으면 초기 설정
+            // setDefaultEndTime(); // 필요시 활성화
         }
     });
 </script>

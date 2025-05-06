@@ -8,6 +8,7 @@ class Booking(db.Model):
     user_id = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=False, index=True)
     booth_id = db.Column(db.Integer, db.ForeignKey('booth.id'), nullable=False, index=True)
     pro_id = db.Column(db.Integer, db.ForeignKey('pro.id'), nullable=True, index=True) # 레슨 예약 시 담당 프로
+    used_lesson_count = db.Column(db.Integer, default=0) # 이 예약에서 사용(차감)된 레슨 횟수
 
     booking_type = db.Column(db.Enum(BookingType), nullable=False, default=BookingType.TASEOK_ONLY) # 예약 유형
     status = db.Column(db.Enum(BookingStatus), nullable=False, default=BookingStatus.SCHEDULED, index=True) # 예약 상태

@@ -288,9 +288,12 @@ class BookingForm(FlaskForm):
     user_id = SelectField('회원', coerce=coerce_int_or_none, validators=[DataRequired(message="회원을 선택해주세요.")])
     booth_id = SelectField('타석', coerce=coerce_int_or_none, validators=[DataRequired(message="타석을 선택해주세요.")])
     booking_type = SelectField('예약 유형', coerce=BookingType, validators=[DataRequired()],
-                               choices=[(t, t.value) for t in BookingType])
+                           choices=[(t, t.value) for t in BookingType],
+                           default=BookingType.TASEOK_ONLY) # 예: 기본값으로 '타석 이용' 설정
     # coerce 함수 적용
     pro_id = SelectField('담당 프로 (레슨 예약 시)', coerce=coerce_int_or_none, validators=[Optional()])
+    lesson_count_to_use = IntegerField('사용할 레슨 횟수', default=1, validators=[Optional(), NumberRange(min=1)],
+                                     description="레슨 예약 시 차감할 횟수 (기본 1회)")
 
     # 날짜와 시간을 함께 입력받는 필드
     start_time = DateTimeLocalField('시작 시간', format='%Y-%m-%dT%H:%M', validators=[DataRequired()], widget=DateTimeLocalInput())

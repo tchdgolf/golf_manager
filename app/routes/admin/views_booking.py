@@ -45,7 +45,8 @@ def create_booking_form():
 
     return render_template('booking/create_booking_form.html',
                            title="관리자 예약 생성",
-                           form=form) # 폼 객체만 전달
+                           form=form,
+                           BookingType=BookingType) # 폼 객체만 전달
 
 # 관리자 예약 생성 처리 (POST)
 @bp.route('/bookings/create', methods=['POST'])
@@ -84,16 +85,19 @@ def create_booking_post():
             return redirect(url_for('admin.view_booking', booking_id=new_booking.id))
         else:
             flash(message, 'danger')
-            # 폼 유효성 검증 오류 외의 실패 시 (예: 이용권 없음, 타석 불가 등)
-            # 오류 메시지를 flash로 보여주고 폼 페이지 다시 렌더링
+            # 실패 시 폼 다시 렌더링 -> 여기서 BookingType 전달 필요!
+            return render_template('booking/create_booking_form.html',
+                                   title="관리자 예약 생성",
+                                   form=form,
+                                   BookingType=BookingType) # <<< 여기!
     else:
-        # 폼 유효성 검증 실패 시 (WTForms validator에 의해 자동으로 오류 메시지가 폼 필드에 추가됨)
         flash("입력 값을 확인해주세요.", "warning")
+        # 폼 유효성 검증 실패 시 폼 다시 렌더링 -> 여기서 BookingType 전달 필요!
+        return render_template('booking/create_booking_form.html',
+                               title="관리자 예약 생성",
+                               form=form,
+                               BookingType=BookingType) # <<< 여기!
 
-    # 폼 유효성 검증 실패 또는 서비스 로직 실패 시 폼 페이지 다시 보여주기
-    return render_template('booking/create_booking_form.html',
-                           title="관리자 예약 생성",
-                           form=form)
 
 
 # 예약 상세 보기 (필요시)
