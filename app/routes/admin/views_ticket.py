@@ -4,7 +4,7 @@ from flask import render_template, redirect, url_for, flash, request, jsonify
 from . import bp # admin 블루프린트
 from app.extensions import db
 from app.models import User, Pro, TicketTemplate, Ticket # 필요한 모델들
-from app.forms.admin_forms import TicketIssueForm
+from app.forms.admin_forms import TicketIssueForm, TicketEditForm
 from app.models.ticket_template import TicketCategory 
 # from app.services import ticket_service, user_service # 나중에 서비스 로직 임포트
 
