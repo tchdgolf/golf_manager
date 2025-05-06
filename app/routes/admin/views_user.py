@@ -4,7 +4,7 @@ from flask import render_template, redirect, url_for, flash, request
 from flask_login import current_user # 현재 로그인 사용자 정보
 from . import bp # admin 블루프린트
 from app.extensions import db
-from app.models import User
+from app.models import User, Ticket
 from app.forms.admin_forms import UserEditForm, UserPasswordResetForm
 
 # 회원 목록 조회
@@ -32,9 +32,22 @@ def view_user(user_id):
     if user is None:
         flash('해당 회원을 찾을 수 없습니다.', 'warning')
         return redirect(url_for('admin.list_users'))
-    # 비밀번호 초기화 폼도 함께 전달
+
     password_reset_form = UserPasswordResetForm()
-    return render_template('user/view_user.html', user=user, title=f"회원 정보: {user.name}", password_reset_form=password_reset_form)
+
+    # 회원 보유 티켓 미리 정렬
+    user_tickets_query = user.tickets.order_by(
+        Ticket.is_active.desc(), # Ticket 모델 직접 사용
+        Ticket.expiry_date.desc(),
+        Ticket.created_at.desc()
+    )
+    user_tickets = user_tickets_query.all() # 정렬된 리스트 가져오기
+
+    return render_template('user/view_user.html',
+                           user=user,
+                           title=f"회원 정보: {user.name}",
+                           password_reset_form=password_reset_form,
+                           user_tickets=user_tickets) # 정렬된 티켓 리스트 전달
 
 # 회원 정보 수정
 @bp.route('/users/edit/<int:user_id>', methods=['GET', 'POST'])

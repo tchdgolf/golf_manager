@@ -70,9 +70,9 @@
     <div class="row mt-4"> {# 이용권, 예약 등 추가 정보 섹션 #}
         <div class="col-md-12">
             <h4><i class="bi bi-ticket-detailed"></i> 보유 이용권 정보</h4>
-            {% if user.tickets and user.tickets.count() > 0 %}
+            {% if user_tickets %} 
                 <div class="list-group">
-                    {% for ticket in user.tickets.order_by(ticket.Ticket.is_active.desc(), ticket.Ticket.expiry_date.desc(), ticket.Ticket.created_at.desc()) %}
+                    {% for ticket in user_tickets %} 
                     <div class="list-group-item list-group-item-action flex-column align-items-start {{ 'list-group-item-light text-muted' if not ticket.is_active }}">
                         <div class="d-flex w-100 justify-content-between">
                             <h5 class="mb-1">
