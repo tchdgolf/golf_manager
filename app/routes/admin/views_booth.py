@@ -64,7 +64,7 @@ def edit_booth(booth_id):
                 print(f"booth.system_type (DB value): {booth.system_type}, type: {type(booth.system_type)}")
 
                 form.name.data = booth.name
-                form.system_type.data = booth.system_type # Enum 멤버 객체 할당
+                form.system_type.data = booth.system_type.value  # <<< Enum 멤버의 'value' (문자열)를 할당
                 print(f"form.system_type.data (after assignment): {form.system_type.data}, type: {type(form.system_type.data)}")
                 print(f"form.system_type.choices: {form.system_type.choices}")
 
