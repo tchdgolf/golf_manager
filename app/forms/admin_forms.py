@@ -14,8 +14,7 @@ class BoothForm(FlaskForm):
     ])
     # Enum을 사용하는 SelectField: choices는 (value, label) 튜플 리스트
     system_type = SelectField('시스템 종류', coerce=BoothSystemType, validators=[DataRequired()],
-                              # choices=[(choice, choice.value) for choice in BoothSystemType]) # 기존
-                              choices=[(choice.name, choice.value) for choice in BoothSystemType]) # 수정: (Enum이름문자열, 보여줄텍스트)
+                              choices=[(choice, choice.value) for choice in BoothSystemType])
     is_available = BooleanField('예약 가능 상태', default=True) # 체크박스
     memo = TextAreaField('메모 (선택 사항)')
     submit = SubmitField('저장')
