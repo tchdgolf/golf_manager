@@ -39,6 +39,24 @@ def add_new_holding(ticket_id: int, start_date: datetime.date, end_date: datetim
     ticket = db.session.get(Ticket, ticket_id)
     if not ticket:
         return False, "해당 이용권을 찾을 수 없습니다.", None
+    
+    # --- ▼ 홀딩 기간 유효성 검사 추가 ▼ ---
+    # 1. 홀딩 시작일 검사: 티켓 시작일 이후여야 함
+    if start_date < ticket.start_date:
+        return False, f"홀딩 시작일({start_date})은 이용권 시작일({ticket.start_date}) 이후여야 합니다.", None
+
+    # 2. 홀딩 종료일 검사: 티켓 만료일 이내여야 함 (만료일이 있는 경우)
+    if ticket.expiry_date and end_date > ticket.expiry_date:
+         # 주의: 이미 연장된 만료일 기준으로 비교해야 할까? 아니면 홀딩 적용 전 만료일?
+         # 일반적으로는 홀딩 적용 전/후 관계없이 '현재 시점의' 만료일을 넘어서는 홀딩은 이상함.
+         # 하지만 정책적으로 만료일 이후까지 홀딩이 필요하다면 이 검사를 제거하거나 수정해야 함.
+         # 여기서는 현재 만료일보다 이후 날짜로 홀딩 종료일을 설정할 수 없도록 제한.
+        return False, f"홀딩 종료일({end_date})은 현재 이용권 만료일({ticket.expiry_date}) 이전이어야 합니다.", None
+
+    # 3. 홀딩 기간 자체 검증 (종료일 >= 시작일) - HoldingForm 에서 이미 검증하지만 여기서도 확인 가능
+    if end_date < start_date:
+        return False, "홀딩 종료일은 시작일보다 이전일 수 없습니다.", None
+    # --- ▲ 홀딩 기간 유효성 검사 끝 ▲ ---
 
     # 1. 홀딩 기간 겹침 검사
     overlapping_holding = Holding.query.filter(
