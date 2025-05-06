@@ -251,24 +251,20 @@ def edit_ticket(ticket_id):
     return render_template('ticket/edit_ticket_form.html', form=form, title="이용권 정보 수정", ticket=ticket)
 
 
-# 특정 티켓의 홀딩 목록 조회 API (모달용)
-@bp.route('/api/ticket/<int:ticket_id>/holdings')
-def get_ticket_holdings(ticket_id):
-    ticket = db.session.get(Ticket, ticket_id)
-    if not ticket:
-        return jsonify({'error': 'Ticket not found'}), 404
 
-    holdings_data = []
-    for holding in ticket.holdings.order_by(Holding.start_date.asc()).all():
-        holdings_data.append({
-            'id': holding.id,
-            'start_date': holding.start_date.isoformat(),
-            'end_date': holding.end_date.isoformat(),
-            'duration_days': holding.duration_days,
-            'reason': holding.reason
-        })
-    # 템플릿 렌더링 대신 JSON 반환
-    return jsonify({'holdings': holdings_data})
+# 특정 홀딩 정보 조회 API (수정 폼 채우기용)
+@bp.route('/api/holding/<int:holding_id>')
+def get_holding_info(holding_id):
+    holding = db.session.get(Holding, holding_id)
+    if not holding:
+        return jsonify({'error': 'Holding not found'}), 404
+    return jsonify({
+        'id': holding.id,
+        'ticket_id': holding.ticket_id,
+        'start_date': holding.start_date.isoformat(),
+        'end_date': holding.end_date.isoformat(),
+        'reason': holding.reason
+    })
 
 # 홀딩 추가
 @bp.route('/ticket/<int:ticket_id>/holding/add', methods=['POST'])
@@ -297,6 +293,37 @@ def add_holding(ticket_id):
         errors = {field: error[0] for field, error in form.errors.items()}
         return jsonify({'success': False, 'message': '입력 값을 확인해주세요.', 'errors': errors}), 400
 
+# 홀딩 수정
+@bp.route('/holding/edit/<int:holding_id>', methods=['POST']) # 수정은 POST로만 처리
+def edit_holding(holding_id):
+    holding_to_edit = db.session.get(Holding, holding_id)
+    if not holding_to_edit:
+         return jsonify({'success': False, 'message': 'Holding not found'}), 404
+
+    form = HoldingForm() # POST 데이터로 폼 인스턴스 생성
+
+    if form.validate_on_submit():
+        # TODO: 서비스 함수 호출하여 홀딩 수정 로직 실행
+        # success, message = update_existing_holding(
+        #     holding_id=holding_id,
+        #     new_start_date=form.start_date.data,
+        #     new_end_date=form.end_date.data,
+        #     new_reason=form.reason.data
+        # )
+        success = True # 임시
+        message = f"홀딩 수정 로직 (ID: {holding_id}) 구현 필요" # 임시
+        flash(message, 'info') # 임시
+
+        if success:
+            # flash(message, 'success') # 성공 시 flash
+            return jsonify({'success': True, 'message': message})
+        else:
+            # flash(message, 'danger') # 실패 시 flash
+            return jsonify({'success': False, 'message': message}), 400
+    else:
+        # 폼 유효성 검증 실패
+        errors = {field: error[0] for field, error in form.errors.items()}
+        return jsonify({'success': False, 'message': '입력 값을 확인해주세요.', 'errors': errors}), 400
 
 # 홀딩 삭제
 @bp.route('/holding/delete/<int:holding_id>', methods=['POST'])
@@ -311,7 +338,7 @@ def delete_holding(holding_id):
         flash(message, 'danger') # 실패 시에도 flash
         return jsonify({'success': False, 'message': message}), 404 # Not Found 또는 다른 적절한 코드
 
-# 홀딩 수정 라우트는 필요시 추가 (보통 삭제 후 다시 추가하는 방식으로 처리 가능)
+
 
 # --- ▲ 홀딩 관리 관련 라우트 끝 ▲ ---
 
