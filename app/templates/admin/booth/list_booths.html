@@ -1,0 +1,73 @@
+{% extends "base.html" %}
+{% from "_pagination_helper.html" import render_pagination %}
+
+{% block title %}{{ title }} - 관리자{% endblock %}
+
+{% block content %}
+<h2 class="mb-4">{{ title }}</h2>
+
+<div class="mb-3">
+    <a href="{{ url_for('admin.add_booth') }}" class="btn btn-success">
+        <i class="bi bi-plus-lg"></i> 타석 추가
+    </a>
+    {# 초기 타석 데이터 생성 버튼 (선택적, 나중에 CLI 명령어 대신 사용 시) #}
+    {# <a href="{{ url_for('admin.init_booths_view') }}" class="btn btn-info ms-2">기본 타석 생성</a> #}
+</div>
+
+{% if booths %}
+<table class="table table-striped table-hover">
+    <thead>
+        <tr>
+            <th scope="col">#</th>
+            <th scope="col">이름</th>
+            <th scope="col">시스템</th>
+            <th scope="col">예약 가능</th>
+            <th scope="col">현재 상태</th> {# 향후 연동 시 의미 있음 #}
+            <th scope="col">메모</th>
+            <th scope="col">관리</th>
+        </tr>
+    </thead>
+    <tbody>
+        {% for booth in booths %}
+        <tr>
+            <th scope="row">{{ loop.index + pagination.per_page * (pagination.page - 1) }}</th>
+            <td>{{ booth.name }}</td>
+            <td>{{ booth.system_type.value }}</td> {# Enum 값 표시 #}
+            <td>
+                {% if booth.is_available %}
+                    <span class="badge bg-success">가능</span>
+                {% else %}
+                    <span class="badge bg-secondary">불가</span>
+                {% endif %}
+            </td>
+            <td>{{ booth.current_status.value }}</td> {# Enum 값 표시 #}
+            <td>{{ booth.memo | default('', true) | truncate(30) }}</td>
+            <td>
+                <a href="{{ url_for('admin.edit_booth', booth_id=booth.id) }}" class="btn btn-sm btn-outline-primary me-2">
+                    <i class="bi bi-pencil-square"></i> 수정
+                </a>
+                <form action="{{ url_for('admin.delete_booth', booth_id=booth.id) }}" method="POST" class="d-inline" onsubmit="return confirm('정말로 \'{{ booth.name }}\' 타석을 삭제하시겠습니까? 연결된 예약이 있을 경우 문제가 발생할 수 있습니다.');">
+                    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                    <button type="submit" class="btn btn-sm btn-outline-danger">
+                        <i class="bi bi-trash"></i> 삭제
+                    </button>
+                </form>
+            </td>
+        </tr>
+        {% endfor %}
+    </tbody>
+</table>
+
+{{ render_pagination(pagination, 'admin.list_booths') }}
+
+{% else %}
+<div class="alert alert-warning" role="alert">
+    등록된 타석이 없습니다.
+</div>
+{% endif %}
+{% endblock %}
+
+{% block scripts %}
+{{ super() }}
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.10.5/font/bootstrap-icons.css">
+{% endblock %}

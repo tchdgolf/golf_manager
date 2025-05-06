@@ -1,0 +1,33 @@
+{% extends "base.html" %}
+{% import "bootstrap/wtf.html" as wtf %}
+
+{% block title %}{{ title }} - 관리자{% endblock %}
+
+{% block content %}
+<h2 class="mb-4">{{ title }}</h2>
+
+<div class="row">
+    <div class="col-md-8"> {# 폼 영역 넓힘 #}
+        {{ wtf.quick_form(form, button_map={'submit': 'primary'}) }}
+    </div>
+</div>
+
+<div class="mt-4">
+    <a href="{{ url_for('admin.list_booths') }}" class="btn btn-secondary">
+        <i class="bi bi-list-ul"></i> 목록으로 돌아가기
+    </a>
+    {% if is_edit %}
+    <form action="{{ url_for('admin.delete_booth', booth_id=booth.id) }}" method="POST" class="d-inline float-end" onsubmit="return confirm('정말로 \'{{ booth.name }}\' 타석을 삭제하시겠습니까?');">
+        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+        <button type="submit" class="btn btn-danger">
+            <i class="bi bi-trash"></i> 타석 삭제
+        </button>
+    </form>
+    {% endif %}
+</div>
+{% endblock %}
+
+{% block scripts %}
+{{ super() }}
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.10.5/font/bootstrap-icons.css">
+{% endblock %}
