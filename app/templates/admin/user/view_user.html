@@ -61,14 +61,12 @@
                         {% endif %}
                     </td>
                 </tr>
-
                 <tr>
                     <th scope="row">총 잔여 레슨</th>
                     <td>
                         <strong class="text-danger">{{ user.remaining_lesson_total or 0 }} 회</strong>
                     </td>
                 </tr>
-
                 <tr>
                     <th scope="row">메모</th>
                     <td>{{ user.memo | nl2br if user.memo else '-' }}</td> {# nl2br: 줄바꿈 표시 #}
