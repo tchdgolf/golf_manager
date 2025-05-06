@@ -7,6 +7,7 @@ from app.models import User, Pro, TicketTemplate, Ticket, Holding
 from app.forms.admin_forms import TicketIssueForm, TicketEditForm, HoldingForm
 from app.models.ticket_template import TicketCategory 
 from app.services.holding_service import add_new_holding, delete_existing_holding, update_existing_holding
+from app.services.ticket_service import delete_ticket_by_id 
 
 # 이용권 발급 페이지
 @bp.route('/tickets/issue', methods=['GET', 'POST'])
@@ -371,14 +372,25 @@ def delete_holding(holding_id):
 
 # --- ▲ 홀딩 관리 관련 라우트 끝 ▲ ---
 
-# 이용권 삭제 (기본 틀)
+# 이용권 삭제
 @bp.route('/tickets/delete/<int:ticket_id>', methods=['POST'])
 def delete_ticket(ticket_id):
-    # ... (이전 기본 틀 유지 - 나중에 구현) ...
-     ticket = db.session.get(Ticket, ticket_id) # 임시 추가 (리디렉션용)
-     if not ticket: ticket_user_id = None
-     else: ticket_user_id = ticket.user_id
-     flash(f'이용권 삭제 기능 (ID: {ticket_id}) 은 아직 구현되지 않았습니다.', 'info')
-     if ticket_user_id: return redirect(url_for('admin.view_user', user_id=ticket_user_id))
-     else: return redirect(url_for('admin.list_users')) # 임시
+    # 사용자 확인을 위해 티켓 먼저 로드 (선택적이지만 안전)
+    ticket = db.session.get(Ticket, ticket_id)
+    if not ticket:
+        flash('해당 이용권을 찾을 수 없습니다.', 'warning')
+        # 어디로 리디렉션할지 결정 (예: 회원 목록)
+        return redirect(url_for('admin.list_users'))
+    user_id = ticket.user_id # 리디렉션용 사용자 ID 저장
+
+    # 서비스 함수 호출하여 삭제 시도
+    success, message = delete_ticket_by_id(ticket_id)
+
+    if success:
+        flash(message, 'success')
+    else:
+        flash(message, 'danger')
+
+    # 삭제 후 해당 회원의 상세 페이지로 리디렉션
+    return redirect(url_for('admin.view_user', user_id=user_id))
 
