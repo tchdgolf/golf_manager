@@ -43,6 +43,9 @@
                                 <li><a class="dropdown-item" href="{{ url_for('admin.list_users') }}">회원 관리</a></li>
                                 <li><a class="dropdown-item" href="{{ url_for('auth.register') }}">신규 회원 등록</a></li>
                                 <li><a class="dropdown-item" href="{{ url_for('admin.issue_ticket') }}">이용권 신규 발급</a></li>
+                                <li><hr class="dropdown-divider"></li>
+                                <li><a class="dropdown-item" href="{{ url_for('admin.list_bookings') }}">예약 관리</a></li>
+                                <li><hr class="dropdown-divider"></li>
                                 <li><a class="dropdown-item" href="{{ url_for('admin.list_ticket_templates') }}">이용권 템플릿 관리</a></li>
                                 <li><a class="dropdown-item" href="{{ url_for('admin.list_pros') }}">프로 관리</a></li>
                                 <li><a class="dropdown-item" href="{{ url_for('admin.list_booths') }}">타석 관리</a></li>

@@ -1,11 +1,14 @@
 # app/forms/admin_forms.py
-from wtforms import StringField, SubmitField, SelectField, BooleanField, TextAreaField, PasswordField, IntegerField, DateField
+from wtforms import StringField, SubmitField, SelectField, BooleanField, TextAreaField, PasswordField, IntegerField, DateField, DateTimeLocalField
 from flask_wtf import FlaskForm
-from wtforms.widgets import DateInput 
+from wtforms.widgets import DateInput, DateTimeLocalInput
 from wtforms.validators import DataRequired, Length, ValidationError, Email, Optional, NumberRange
 from app.models import Pro, Booth, User, TicketTemplate, Ticket, Holding
-from app.models.enums import BoothSystemType # Enum 임포트
+from app.models.enums import BoothSystemType, BookingType # Enum 임포트
 from app.models.ticket_template import TicketCategory 
+
+
+
 
 
 def coerce_int_or_none(value):
@@ -281,28 +284,37 @@ class HoldingForm(FlaskForm):
             if field.data < self.start_date.data:
                 raise ValidationError('홀딩 종료일은 시작일보다 이전일 수 없습니다.')
 
-    # (선택적) 특정 티켓에 대한 홀딩 기간 겹침 검증 (라우트에서 처리하는 것이 더 적합할 수 있음)
-    # def __init__(self, ticket_id=None, editing_holding_id=None, *args, **kwargs):
-    #     super().__init__(*args, **kwargs)
-    #     self.ticket_id = ticket_id
-    #     self.editing_holding_id = editing_holding_id
 
-    # def validate(self, extra_validators=None):
-    #     if not super().validate(extra_validators):
-    #         return False
-    #     if not self.ticket_id: # ticket_id가 없으면 검증 불가
-    #         return True
-    #
-    #     # 겹치는 홀딩 기간 확인 로직 (holding_service 에서 구현하는 것이 나을 수 있음)
-    #     # ... query Holding table for overlaps, excluding editing_holding_id ...
-    #     # existing_holdings = Holding.query.filter(
-    #     #     Holding.ticket_id == self.ticket_id,
-    #     #     Holding.id != self.editing_holding_id, # 수정 중인 홀딩은 제외
-    #     #     Holding.start_date <= self.end_date.data,
-    #     #     Holding.end_date >= self.start_date.data
-    #     # ).first()
-    #     # if existing_holdings:
-    #     #     self.start_date.errors.append('해당 기간에 이미 등록된 홀딩이 있습니다.')
-    #     #     return False
-    #     return True
-    
+class BookingForm(FlaskForm):
+    """관리자 예약 생성/수정 폼"""
+    user_id = SelectField('회원', coerce=int, validators=[DataRequired(message="회원을 선택해주세요.")])
+    booth_id = SelectField('타석', coerce=int, validators=[DataRequired(message="타석을 선택해주세요.")])
+    booking_type = SelectField('예약 유형', coerce=BookingType, validators=[DataRequired()],
+                               choices=[(t, t.value) for t in BookingType])
+    pro_id = SelectField('담당 프로 (레슨 예약 시)', coerce=coerce_int_or_none, validators=[Optional()]) # coerce 함수 재사용
+
+    # 날짜와 시간을 함께 입력받는 필드
+    start_time = DateTimeLocalField('시작 시간', format='%Y-%m-%dT%H:%M', validators=[DataRequired()], widget=DateTimeLocalInput())
+    # 종료 시간 또는 이용 시간(duration)을 입력받는 방식 선택 가능
+    # 예: 종료 시간 입력
+    end_time = DateTimeLocalField('종료 시간', format='%Y-%m-%dT%H:%M', validators=[DataRequired()], widget=DateTimeLocalInput())
+    # 예: 이용 시간(분) 입력
+    # duration = IntegerField('이용 시간 (분)', validators=[DataRequired(), NumberRange(min=30)]) # 예: 최소 30분
+
+    memo = TextAreaField('메모 (선택 사항)')
+    submit = SubmitField('예약 생성')
+
+    # choices는 라우트에서 동적으로 로드
+
+    # 시작 시간/종료 시간 유효성 검증
+    def validate_end_time(self, field):
+        if self.start_time.data and field.data:
+            if field.data <= self.start_time.data:
+                raise ValidationError('종료 시간은 시작 시간보다 이후여야 합니다.')
+            # 최소/최대 예약 시간 검증 등 추가 가능
+
+    # 레슨 예약 시 프로 선택 유효성 검증
+    def validate_pro_id(self, field):
+        if self.booking_type.data == BookingType.LESSON and not field.data:
+            raise ValidationError('레슨 예약 시 담당 프로를 선택해야 합니다.')
+        

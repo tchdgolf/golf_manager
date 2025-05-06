@@ -23,3 +23,4 @@ from . import views_booth
 from . import views_user
 from . import views_ticket_template
 from . import views_ticket
+from . import views_booking
