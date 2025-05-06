@@ -86,7 +86,11 @@
     </table>
 </div>
 
-{{ render_pagination(pagination, 'admin.list_users', search=search_term) }}
+{% if search_term %}
+    {{ render_pagination(pagination, 'admin.list_users', url_params={'search': search_term}) }}
+{% else %}
+    {{ render_pagination(pagination, 'admin.list_users') }} {# search_term이 없으면 url_params 전달 안 함 (기본값 {} 사용) #}
+{% endif %}
 
 {% else %}
 <div class="alert alert-warning" role="alert">

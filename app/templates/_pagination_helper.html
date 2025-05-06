@@ -1,12 +1,12 @@
 {# app/templates/_pagination_helper.html #}
-{% macro render_pagination(pagination, endpoint, fragment='', **kwargs) %} {# **kwargs 추가 #}
+{% macro render_pagination(pagination, endpoint, fragment='', url_params={}) %} {# **kwargs 대신 url_params={} 로 변경 #}
   {% if pagination and pagination.pages > 1 %}
     <nav aria-label="Page navigation">
       <ul class="pagination justify-content-center">
         {# Previous page link #}
         <li class="page-item {% if not pagination.has_prev %}disabled{% endif %}">
-          {# url_for에 **kwargs 전달 #}
-          <a class="page-link" href="{% if pagination.has_prev %}{{ url_for(endpoint, page=pagination.prev_num, **kwargs) }}{{ fragment }}{% else %}#{% endif %}">«</a>
+          {# url_for에 url_params 딕셔너리 풀어서 전달 #}
+          <a class="page-link" href="{% if pagination.has_prev %}{{ url_for(endpoint, page=pagination.prev_num, **url_params) }}{{ fragment }}{% else %}#{% endif %}">«</a>
         </li>
 
         {# Page numbers #}
@@ -14,8 +14,8 @@
           {% if page_num %}
             {% if page_num != pagination.page %}
               <li class="page-item">
-                {# url_for에 **kwargs 전달 #}
-                <a class="page-link" href="{{ url_for(endpoint, page=page_num, **kwargs) }}{{ fragment }}">{{ page_num }}</a>
+                {# url_for에 url_params 딕셔너리 풀어서 전달 #}
+                <a class="page-link" href="{{ url_for(endpoint, page=page_num, **url_params) }}{{ fragment }}">{{ page_num }}</a>
               </li>
             {% else %}
               <li class="page-item active" aria-current="page">
