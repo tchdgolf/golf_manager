@@ -95,7 +95,8 @@ def find_available_ticket_for_lesson(user: User, booking_start_time: datetime.da
 
 def create_booking(user_id: int, booth_id: int, pro_id: int | None,
                    start_time: datetime.datetime, end_time: datetime.datetime,
-                   booking_type: BookingType, memo: str = None) -> tuple[bool, str, Booking | None]:
+                   booking_type: BookingType, memo: str = None,
+                   lesson_count_to_use: int = 1) -> tuple[bool, str, Booking | None]: 
     """
     새로운 예약을 생성합니다.
 
@@ -114,21 +115,22 @@ def create_booking(user_id: int, booth_id: int, pro_id: int | None,
     use_total_lesson_count = False # User.remaining_lesson_total 사용 여부
 
     if booking_type == BookingType.LESSON:
-        # 레슨 예약 시
         coupon_ticket, can_use_total = find_available_ticket_for_lesson(user, start_time)
         if coupon_ticket:
-            # 쿠폰 사용: 쿠폰 티켓이 타석+레슨 역할 모두 수행
+            # 쿠폰 잔여 횟수가 사용할 횟수보다 많은지 확인
+            if (coupon_ticket.remaining_lesson_count or 0) < lesson_count_to_use:
+                 return False, f"쿠폰 레슨 잔여 횟수({coupon_ticket.remaining_lesson_count})가 부족합니다 ({lesson_count_to_use}회 필요).", None
+            if (coupon_ticket.remaining_taseok_count or 0) < lesson_count_to_use: # 쿠폰은 타석도 동일 횟수 차감 가정
+                 return False, f"쿠폰 타석 잔여 횟수({coupon_ticket.remaining_taseok_count})가 부족합니다 ({lesson_count_to_use}회 필요).", None
             used_taseok_ticket = coupon_ticket
             used_lesson_ticket = coupon_ticket
-        elif can_use_total:
-            # 통합 레슨 횟수 사용: 별도의 타석 이용권 필요
+        elif (user.remaining_lesson_total or 0) >= lesson_count_to_use: # 통합 레슨 횟수 확인
             use_total_lesson_count = True
             used_taseok_ticket = find_available_ticket_for_taseok(user, start_time)
             if not used_taseok_ticket:
-                return False, "레슨 예약에 필요한 유효한 타석 이용권이 없습니다.", None
+                 return False, "..." # 타석 이용권 없음
         else:
-            # 레슨 사용 불가 (쿠폰도 없고, 통합 횟수도 없음)
-            return False, "사용 가능한 레슨 횟수 또는 쿠폰이 없습니다.", None
+             return False, f"통합 레슨 잔여 횟수({user.remaining_lesson_total})가 부족합니다 ({lesson_count_to_use}회 필요).", None
     else: # BookingType.TASEOK_ONLY
         # 타석만 예약 시
         used_taseok_ticket = find_available_ticket_for_taseok(user, start_time)
@@ -151,36 +153,44 @@ def create_booking(user_id: int, booth_id: int, pro_id: int | None,
             status=BookingStatus.SCHEDULED,
             memo=memo,
             used_taseok_ticket_id=used_taseok_ticket.id if used_taseok_ticket else None,
-            used_lesson_ticket_id=used_lesson_ticket.id if used_lesson_ticket else None # 쿠폰 사용 시에만 값 존재
+            used_lesson_ticket_id=used_lesson_ticket.id if used_lesson_ticket else None,
+            used_lesson_count=lesson_count_to_use if booking_type == BookingType.LESSON else 0 
+
         )
         # duration_minutes는 __init__에서 자동 계산됨
 
         # 4. 이용권 및 레슨 횟수 차감
-        # 타석 횟수 차감 (횟수권 또는 쿠폰 사용 시)
-        if used_taseok_ticket and used_taseok_ticket.remaining_taseok_count is not None:
-            if used_taseok_ticket.remaining_taseok_count > 0:
-                used_taseok_ticket.remaining_taseok_count -= 1
-                used_taseok_ticket.update_status() # 소진 여부 등 상태 업데이트
-                db.session.add(used_taseok_ticket)
-            else:
-                # 이 경우는 find_available... 에서 걸러졌어야 함
-                raise Exception("사용 가능한 타석 횟수가 없습니다.")
-
-        # 레슨 횟수 차감
         if booking_type == BookingType.LESSON:
             if used_lesson_ticket: # 쿠폰 사용 시
-                if used_lesson_ticket.remaining_lesson_count is not None and used_lesson_ticket.remaining_lesson_count > 0:
-                    used_lesson_ticket.remaining_lesson_count -= 1
-                    used_lesson_ticket.update_status() # 레슨 횟수 소진 여부도 확인
+                if (used_lesson_ticket.remaining_lesson_count or 0) >= lesson_count_to_use:
+                    used_lesson_ticket.remaining_lesson_count -= lesson_count_to_use # 지정된 횟수만큼 차감
+                    # 타석 횟수도 차감 (쿠폰 정책)
+                    if used_lesson_ticket.remaining_taseok_count is not None and (used_lesson_ticket.remaining_taseok_count or 0) >= lesson_count_to_use :
+                         used_lesson_ticket.remaining_taseok_count -= lesson_count_to_use
+                    else:
+                        raise Exception("쿠폰 타석 횟수 부족 (차감 단계 오류)")
+
+                    used_lesson_ticket.update_status()
                     db.session.add(used_lesson_ticket)
-                else:
-                    raise Exception("사용 가능한 쿠폰 레슨 횟수가 없습니다.")
-            elif use_total_lesson_count: # 통합 레슨 횟수 사용 시
-                if user.remaining_lesson_total > 0:
-                    user.remaining_lesson_total -= 1
+                else: raise Exception("사용 가능한 레슨 횟수가 없습니다.") # 쿠폰 횟수 부족
+            elif use_total_lesson_count: # 통합 레슨 사용 시
+                if (user.remaining_lesson_total or 0) >= lesson_count_to_use:
+                    user.remaining_lesson_total -= lesson_count_to_use # 지정된 횟수만큼 차감
                     db.session.add(user)
-                else:
-                    raise Exception("사용 가능한 통합 레슨 횟수가 없습니다.")
+                else: raise Exception("사용 가능한 레슨 횟수가 없습니다.") # 통합 횟수 부족
+
+        # ... (타석 횟수 차감 - 타석만 이용 or 쿠폰 사용 시) ...
+        if used_taseok_ticket and not used_lesson_ticket: # 타석 이용권만 사용 시 (레슨+타석권 또는 타석만)
+            if used_taseok_ticket.remaining_taseok_count is not None:
+                 if used_taseok_ticket.remaining_taseok_count > 0:
+                     used_taseok_ticket.remaining_taseok_count -= 1 # 타석은 1회 차감
+                     used_taseok_ticket.update_status()
+                     db.session.add(used_taseok_ticket)
+                 else: raise Exception("사용 가능한 타석 이용권이 없습니다.") # 타석 횟수 부족
+        elif used_taseok_ticket and used_lesson_ticket and used_taseok_ticket.id == used_lesson_ticket.id:
+            # 쿠폰 사용 시 타석 차감은 위 레슨 차감 로직에서 이미 처리됨
+            pass
+
 
         db.session.add(new_booking)
         db.session.commit()
@@ -211,34 +221,37 @@ def cancel_booking(booking_id: int, cancelled_by_admin: bool = False) -> tuple[b
         return False, f"'{booking.status.value}' 상태의 예약은 취소할 수 없습니다."
 
     try:
+        lessons_to_rollback = booking.used_lesson_count or 0
         # 1. 예약 상태 변경
         original_status = booking.status
         booking.status = BookingStatus.CANCELLED_ADMIN if cancelled_by_admin else BookingStatus.CANCELLED_USER
 
         # 2. 횟수 롤백
-        # 타석 횟수 롤백 (차감되었던 티켓이 있다면)
+
+        # 타석 횟수 롤백 (무조건 1회 롤백)
         if booking.used_taseok_ticket_id:
             taseok_ticket = db.session.get(Ticket, booking.used_taseok_ticket_id)
             if taseok_ticket and taseok_ticket.remaining_taseok_count is not None:
-                 # 이미 최대 횟수거나 하면 롤백하지 않을 수 있음 (정책 필요)
-                 if taseok_ticket.total_taseok_count is None or taseok_ticket.remaining_taseok_count < taseok_ticket.total_taseok_count:
-                    taseok_ticket.remaining_taseok_count += 1
-                    taseok_ticket.update_status() # 상태 업데이트 (is_used_up 등 변경 가능)
-                    db.session.add(taseok_ticket)
+                    if taseok_ticket.total_taseok_count is None or taseok_ticket.remaining_taseok_count < taseok_ticket.total_taseok_count:
+                        taseok_ticket.remaining_taseok_count += 1 # 항상 1회만 롤백
+                        taseok_ticket.update_status()
+                        db.session.add(taseok_ticket)
 
-        # 레슨 횟수 롤백
-        if booking.booking_type == BookingType.LESSON:
+
+
+        # 레슨 횟수 롤백 (저장된 횟수만큼)
+        if lessons_to_rollback > 0:
             if booking.used_lesson_ticket_id: # 쿠폰 사용 취소
                 lesson_ticket = db.session.get(Ticket, booking.used_lesson_ticket_id)
                 if lesson_ticket and lesson_ticket.remaining_lesson_count is not None:
                     if lesson_ticket.total_lesson_count is None or lesson_ticket.remaining_lesson_count < lesson_ticket.total_lesson_count:
-                        lesson_ticket.remaining_lesson_count += 1
+                        lesson_ticket.remaining_lesson_count += lessons_to_rollback # 롤백
                         lesson_ticket.update_status()
                         db.session.add(lesson_ticket)
             else: # 통합 레슨 횟수 사용 취소
                 user = booking.user
                 if user:
-                    user.remaining_lesson_total = (user.remaining_lesson_total or 0) + 1
+                    user.remaining_lesson_total = (user.remaining_lesson_total or 0) + lessons_to_rollback # 롤백
                     db.session.add(user)
 
         db.session.add(booking)

@@ -67,6 +67,7 @@ def create_booking_post():
         end_time = form.end_time.data
         booking_type = form.booking_type.data
         memo = form.memo.data
+        lesson_count_to_use = form.lesson_count_to_use.data or 1 # 값이 없으면 기본값 1
 
         # create_booking 서비스 함수 호출
         success, message, new_booking = create_booking(
@@ -76,7 +77,8 @@ def create_booking_post():
             start_time=start_time,
             end_time=end_time,
             booking_type=booking_type,
-            memo=memo
+            memo=memo,
+            lesson_count_to_use=lesson_count_to_use if booking_type == BookingType.LESSON else 0
         )
 
         if success:
