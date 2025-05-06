@@ -8,6 +8,9 @@ from app.models.enums import BookingType, BookingStatus # Enum 임포트
 # from app.forms.admin_forms import BookingForm, BookingFilterForm # 나중에 만들 폼 임포트
 from app.services.booking_service import create_booking, cancel_booking # 서비스 함수 임포트
 from sqlalchemy import or_ # 검색용
+from app.forms.admin_forms import BookingForm # BookingForm 임포트
+
+
 
 # 예약 목록 조회 (기본 틀)
 @bp.route('/bookings')
@@ -27,27 +30,66 @@ def list_bookings():
 # 관리자 예약 생성 페이지 (GET)
 @bp.route('/bookings/create', methods=['GET'])
 def create_booking_form():
-    # TODO: 예약 생성 폼(BookingForm) 정의 및 전달
-    # 필요한 데이터 로딩 (사용자 목록, 타석 목록, 프로 목록 등)
-    users = User.query.order_by(User.name).all()
-    booths = Booth.query.order_by(Booth.name).all()
-    pros = Pro.query.order_by(Pro.name).all()
-    # form = BookingForm() # 폼 객체 생성
+    form = BookingForm() # 폼 객체 생성
+
+    # SelectField choices 동적 로딩
+    form.user_id.choices = [('', '--- 회원 선택 ---')] + [(u.id, f"{u.name} ({u.phone})") for u in User.query.order_by(User.name).all()]
+    form.booth_id.choices = [('', '--- 타석 선택 ---')] + [(b.id, b.name) for b in Booth.query.filter_by(is_available=True).order_by(Booth.name).all()] # 예약 가능한 타석만
+    form.pro_id.choices = [('', '--- 프로 선택 (레슨 시) ---')] + [(p.id, p.name) for p in Pro.query.order_by(Pro.name).all()]
+
+    # booking_type choices는 폼 정의에서 이미 설정됨
 
     return render_template('booking/create_booking_form.html',
                            title="관리자 예약 생성",
-                           # form=form, # 폼 전달
-                           users=users, booths=booths, pros=pros) # Select 필드용 데이터 전달
+                           form=form) # 폼 객체 전달
 
 # 관리자 예약 생성 처리 (POST)
 @bp.route('/bookings/create', methods=['POST'])
 def create_booking_post():
-    # TODO: 폼 데이터 받기 및 유효성 검증
-    # TODO: create_booking 서비스 함수 호출
-    # TODO: 성공/실패 처리 및 리디렉션
+    form = BookingForm() # POST 데이터로 폼 인스턴스 생성
 
-    flash("관리자 예약 생성 처리 로직 구현 필요", "info")
-    return redirect(url_for('admin.list_bookings'))
+    # SelectField choices 다시 로드 (유효성 검증 실패 시 폼 다시 보여줄 때 필요)
+    form.user_id.choices = [('', '--- 회원 선택 ---')] + [(u.id, f"{u.name} ({u.phone})") for u in User.query.order_by(User.name).all()]
+    form.booth_id.choices = [('', '--- 타석 선택 ---')] + [(b.id, b.name) for b in Booth.query.filter_by(is_available=True).order_by(Booth.name).all()]
+    form.pro_id.choices = [('', '--- 프로 선택 (레슨 시) ---')] + [(p.id, p.name) for p in Pro.query.order_by(Pro.name).all()]
+
+    if form.validate_on_submit():
+        # 폼 데이터 가져오기
+        user_id = form.user_id.data
+        booth_id = form.booth_id.data
+        pro_id = form.pro_id.data # 레슨 아닐 경우 None일 수 있음 (coerce_int_or_none 덕분)
+        start_time = form.start_time.data
+        end_time = form.end_time.data
+        booking_type = form.booking_type.data
+        memo = form.memo.data
+
+        # create_booking 서비스 함수 호출
+        success, message, new_booking = create_booking(
+            user_id=user_id,
+            booth_id=booth_id,
+            pro_id=pro_id,
+            start_time=start_time,
+            end_time=end_time,
+            booking_type=booking_type,
+            memo=memo
+        )
+
+        if success:
+            flash(message, 'success')
+            # 생성된 예약 상세 페이지 또는 예약 목록으로 리디렉션
+            return redirect(url_for('admin.view_booking', booking_id=new_booking.id))
+        else:
+            flash(message, 'danger')
+            # 폼 유효성 검증 오류 외의 실패 시 (예: 이용권 없음, 타석 불가 등)
+            # 오류 메시지를 flash로 보여주고 폼 페이지 다시 렌더링
+    else:
+        # 폼 유효성 검증 실패 시 (WTForms validator에 의해 자동으로 오류 메시지가 폼 필드에 추가됨)
+        flash("입력 값을 확인해주세요.", "warning")
+
+    # 폼 유효성 검증 실패 또는 서비스 로직 실패 시 폼 페이지 다시 보여주기
+    return render_template('booking/create_booking_form.html',
+                           title="관리자 예약 생성",
+                           form=form)
 
 
 # 예약 상세 보기 (필요시)
