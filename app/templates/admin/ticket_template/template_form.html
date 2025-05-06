@@ -73,38 +73,46 @@
         const defaultValidityDaysField = document.getElementById('default_validity_days');
 
         function toggleFields() {
-            if (!categoryField) return; // categoryField가 없을 경우를 대비
-            const categoryValue = categoryField.value; // 선택된 <option>의 value (예: "기간권")
+            if (!categoryField) {
+                console.error("Category field not found!"); // categoryField가 없는 경우 에러 로그
+                return;
+            }
+            const categoryValue = categoryField.value;
 
-            // 기본적으로 모든 관련 필드 비활성화
+            // 기본적으로 모든 관련 필드 비활성화 (이 부분은 유지)
             durationDaysField.disabled = true;
             totalCountField.disabled = true;
             totalLessonCountField.disabled = true;
             defaultValidityDaysField.disabled = true;
 
-            // TicketCategory Enum의 value 값과 비교
-            if (categoryValue === "{{ TicketCategory.PERIOD.value }}") { // "기간권"
+            // TicketCategory Enum의 value 값과 비교 (이 부분도 유지)
+            if (categoryValue === "{{ TicketCategory.PERIOD.value }}") { // "기간권" === "기간권" (매칭됨!)
                 durationDaysField.disabled = false;
-            } else if (categoryValue === "{{ TicketCategory.COUNT.value }}") { // "횟수권"
+            } else if (categoryValue === "{{ TicketCategory.COUNT.value }}") { // "횟수권" === "횟수권"
                 totalCountField.disabled = false;
                 defaultValidityDaysField.disabled = false;
-            } else if (categoryValue === "{{ TicketCategory.COUPON.value }}") { // "쿠폰 레슨"
+            } else if (categoryValue === "{{ TicketCategory.COUPON.value }}") {
                 totalCountField.disabled = false;
                 totalLessonCountField.disabled = false;
                 defaultValidityDaysField.disabled = false;
-            } else if (categoryValue === "{{ TicketCategory.LESSON_ADD.value }}") { // "레슨 추가"
+            } else if (categoryValue === "{{ TicketCategory.LESSON_ADD.value }}") {
                 totalLessonCountField.disabled = false;
-            } else if (categoryValue === "{{ TicketCategory.COMBO.value }}") { // "종합권"
+            } else if (categoryValue === "{{ TicketCategory.COMBO.value }}") {
                 durationDaysField.disabled = false;
                 totalLessonCountField.disabled = false;
+            } else {
+                console.log("No match for categoryValue:", categoryValue); // 매칭 안 될 경우 로그
             }
         }
 
         if (categoryField) {
             categoryField.addEventListener('change', toggleFields);
-            // 페이지 로드 시, 또는 수정 페이지에서 기존 값이 있을 때 초기 상태 설정
-            // (만약 form.category.data가 템플릿에 전달된다면 해당 값으로 초기화 가능)
-            toggleFields();
+            // 페이지 로드 시 또는 수정 시 초기 상태 설정을 위해 명시적으로 호출
+            // setTimeout을 사용하여 DOM 렌더링 후 확실히 값을 가져오도록 시도 (선택적)
+            // setTimeout(toggleFields, 0);
+            toggleFields(); // 즉시 호출
+        } else {
+            console.error("Category field not found on page load!"); // 페이지 로드 시 아예 못 찾을 경우
         }
     });
 </script>

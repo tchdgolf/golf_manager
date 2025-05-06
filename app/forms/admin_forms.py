@@ -94,7 +94,7 @@ class TicketTemplateForm(FlaskForm):
         Length(min=2, max=100)
     ])
     category = SelectField('이용권 대분류', coerce=TicketCategory, validators=[DataRequired()],
-                           choices=[(cat, cat.value) for cat in TicketCategory])
+                           choices=[(cat.value, cat.value) for cat in TicketCategory]) # 수정: (Enum값문자열, 보여줄텍스트)
 
     # 기간 관련 필드 (기간권, 종합권)
     duration_days = IntegerField('유효 기간 (일 수)', validators=[Optional(), NumberRange(min=1)],
