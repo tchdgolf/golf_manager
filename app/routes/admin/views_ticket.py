@@ -3,10 +3,10 @@ import datetime
 from flask import render_template, redirect, url_for, flash, request, jsonify
 from . import bp # admin 블루프린트
 from app.extensions import db
-from app.models import User, Pro, TicketTemplate, Ticket # 필요한 모델들
-from app.forms.admin_forms import TicketIssueForm, TicketEditForm
+from app.models import User, Pro, TicketTemplate, Ticket, Holding
+from app.forms.admin_forms import TicketIssueForm, TicketEditForm, HoldingForm
 from app.models.ticket_template import TicketCategory 
-# from app.services import ticket_service, user_service # 나중에 서비스 로직 임포트
+from app.services.holding_service import add_new_holding, delete_existing_holding
 
 # 이용권 발급 페이지
 @bp.route('/tickets/issue', methods=['GET', 'POST'])
@@ -250,6 +250,71 @@ def edit_ticket(ticket_id):
 
     return render_template('ticket/edit_ticket_form.html', form=form, title="이용권 정보 수정", ticket=ticket)
 
+
+# 특정 티켓의 홀딩 목록 조회 API (모달용)
+@bp.route('/api/ticket/<int:ticket_id>/holdings')
+def get_ticket_holdings(ticket_id):
+    ticket = db.session.get(Ticket, ticket_id)
+    if not ticket:
+        return jsonify({'error': 'Ticket not found'}), 404
+
+    holdings_data = []
+    for holding in ticket.holdings.order_by(Holding.start_date.asc()).all():
+        holdings_data.append({
+            'id': holding.id,
+            'start_date': holding.start_date.isoformat(),
+            'end_date': holding.end_date.isoformat(),
+            'duration_days': holding.duration_days,
+            'reason': holding.reason
+        })
+    # 템플릿 렌더링 대신 JSON 반환
+    return jsonify({'holdings': holdings_data})
+
+# 홀딩 추가
+@bp.route('/ticket/<int:ticket_id>/holding/add', methods=['POST'])
+def add_holding(ticket_id):
+    # ticket 확인 로직은 service 함수 내부에서 하므로 여기서는 제거 가능
+    form = HoldingForm()
+
+    if form.validate_on_submit():
+        # 서비스 함수 호출
+        success, message, new_holding = add_new_holding(
+            ticket_id=ticket_id,
+            start_date=form.start_date.data,
+            end_date=form.end_date.data,
+            reason=form.reason.data
+        )
+
+        if success:
+            flash(message, 'success') # Flash 메시지 추가
+            return jsonify({'success': True, 'message': message})
+        else:
+            # 서비스 로직에서 실패한 경우 (예: 겹침)
+            # 폼 필드 오류는 아니지만, 일반적인 오류 메시지로 전달 가능
+             return jsonify({'success': False, 'message': message}), 400 # 400 Bad Request 또는 다른 적절한 코드
+    else:
+        # 폼 유효성 검증 실패
+        errors = {field: error[0] for field, error in form.errors.items()}
+        return jsonify({'success': False, 'message': '입력 값을 확인해주세요.', 'errors': errors}), 400
+
+
+# 홀딩 삭제
+@bp.route('/holding/delete/<int:holding_id>', methods=['POST'])
+def delete_holding(holding_id):
+    # 서비스 함수 호출
+    success, message = delete_existing_holding(holding_id)
+
+    if success:
+        flash(message, 'success') # Flash 메시지 추가
+        return jsonify({'success': True, 'message': message})
+    else:
+        flash(message, 'danger') # 실패 시에도 flash
+        return jsonify({'success': False, 'message': message}), 404 # Not Found 또는 다른 적절한 코드
+
+# 홀딩 수정 라우트는 필요시 추가 (보통 삭제 후 다시 추가하는 방식으로 처리 가능)
+
+# --- ▲ 홀딩 관리 관련 라우트 끝 ▲ ---
+
 # 이용권 삭제 (기본 틀)
 @bp.route('/tickets/delete/<int:ticket_id>', methods=['POST'])
 def delete_ticket(ticket_id):
@@ -260,3 +325,4 @@ def delete_ticket(ticket_id):
      flash(f'이용권 삭제 기능 (ID: {ticket_id}) 은 아직 구현되지 않았습니다.', 'info')
      if ticket_user_id: return redirect(url_for('admin.view_user', user_id=ticket_user_id))
      else: return redirect(url_for('admin.list_users')) # 임시
+

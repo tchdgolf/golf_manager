@@ -3,7 +3,7 @@ from wtforms import StringField, SubmitField, SelectField, BooleanField, TextAre
 from flask_wtf import FlaskForm
 from wtforms.widgets import DateInput 
 from wtforms.validators import DataRequired, Length, ValidationError, Email, Optional, NumberRange
-from app.models import Pro, Booth, User, TicketTemplate, Ticket
+from app.models import Pro, Booth, User, TicketTemplate, Ticket, Holding
 from app.models.enums import BoothSystemType # Enum 임포트
 from app.models.ticket_template import TicketCategory 
 
@@ -264,3 +264,45 @@ class TicketEditForm(FlaskForm):
         # 프로 선택지 동적 로딩
         self.pro_id.choices = [('', '담당 프로 없음')] + \
                               [(p.id, p.name) for p in Pro.query.order_by(Pro.name).all()]
+        
+class HoldingForm(FlaskForm):
+    """이용권 홀딩 추가/수정 폼"""
+    # ticket_id는 폼 외부에서 받아오므로 필드로 둘 필요 없음
+    start_date = DateField('홀딩 시작일', validators=[DataRequired(message="시작일을 선택해주세요.")],
+                           format='%Y-%m-%d', widget=DateInput())
+    end_date = DateField('홀딩 종료일', validators=[DataRequired(message="종료일을 선택해주세요.")],
+                         format='%Y-%m-%d', widget=DateInput())
+    reason = StringField('홀딩 사유 (선택 사항)', validators=[Optional(), Length(max=255)])
+    submit = SubmitField('홀딩 저장')
+
+    # 종료일이 시작일보다 이전인지 검증
+    def validate_end_date(self, field):
+        if self.start_date.data and field.data:
+            if field.data < self.start_date.data:
+                raise ValidationError('홀딩 종료일은 시작일보다 이전일 수 없습니다.')
+
+    # (선택적) 특정 티켓에 대한 홀딩 기간 겹침 검증 (라우트에서 처리하는 것이 더 적합할 수 있음)
+    # def __init__(self, ticket_id=None, editing_holding_id=None, *args, **kwargs):
+    #     super().__init__(*args, **kwargs)
+    #     self.ticket_id = ticket_id
+    #     self.editing_holding_id = editing_holding_id
+
+    # def validate(self, extra_validators=None):
+    #     if not super().validate(extra_validators):
+    #         return False
+    #     if not self.ticket_id: # ticket_id가 없으면 검증 불가
+    #         return True
+    #
+    #     # 겹치는 홀딩 기간 확인 로직 (holding_service 에서 구현하는 것이 나을 수 있음)
+    #     # ... query Holding table for overlaps, excluding editing_holding_id ...
+    #     # existing_holdings = Holding.query.filter(
+    #     #     Holding.ticket_id == self.ticket_id,
+    #     #     Holding.id != self.editing_holding_id, # 수정 중인 홀딩은 제외
+    #     #     Holding.start_date <= self.end_date.data,
+    #     #     Holding.end_date >= self.start_date.data
+    #     # ).first()
+    #     # if existing_holdings:
+    #     #     self.start_date.errors.append('해당 기간에 이미 등록된 홀딩이 있습니다.')
+    #     #     return False
+    #     return True
+    

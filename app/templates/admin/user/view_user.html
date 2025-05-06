@@ -150,21 +150,59 @@
     
 </div>
 
-{# 홀딩 관리 모달 (향후 구현) - 페이지 하단에 추가 #}
+{# 홀딩 관리 모달 (페이지 하단) #}
 <div class="modal fade" id="holdingModal" tabindex="-1" aria-labelledby="holdingModalLabel" aria-hidden="true">
-  <div class="modal-dialog">
+  <div class="modal-dialog modal-lg"> {# 모달 크기 키움 #}
     <div class="modal-content">
       <div class="modal-header">
-        <h5 class="modal-title" id="holdingModalLabel">홀딩 관리: <span id="holdingTicketName"></span></h5>
+        <h5 class="modal-title" id="holdingModalLabel">홀딩 관리: <span id="holdingTicketName">이용권 이름</span></h5>
         <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
       </div>
       <div class="modal-body">
-        <p>이곳에 해당 이용권(<span id="holdingTicketId"></span>)의 홀딩 추가 폼 및 기존 홀딩 목록이 표시됩니다.</p>
-        {# 홀딩 폼 및 목록 내용 (향후 구현) #}
+        <input type="hidden" id="holdingModalTicketId"> {# 현재 작업 중인 티켓 ID 저장용 #}
+
+        {# 홀딩 추가 폼 영역 #}
+        <h6><i class="bi bi-plus-circle-fill"></i> 새 홀딩 추가</h6>
+        <form id="addHoldingForm" method="POST"> {# action은 JS에서 설정 #}
+          <input type="hidden" name="csrf_token" value="{{ csrf_token() }}"> {# CSRF 토큰 #}
+          {# HoldingForm 필드들을 직접 렌더링 (quick_form 대신) #}
+           <div class="row g-2 mb-3 align-items-end">
+                <div class="col-md">
+                    <label for="holding_start_date" class="form-label form-label-sm">시작일</label>
+                    <input type="date" class="form-control form-control-sm" id="holding_start_date" name="start_date" required>
+                    <div class="invalid-feedback" id="start_date_error"></div> {# 오류 메시지 표시 영역 #}
+                </div>
+                <div class="col-md">
+                     <label for="holding_end_date" class="form-label form-label-sm">종료일</label>
+                    <input type="date" class="form-control form-control-sm" id="holding_end_date" name="end_date" required>
+                    <div class="invalid-feedback" id="end_date_error"></div>
+                </div>
+                 <div class="col-md">
+                     <label for="holding_reason" class="form-label form-label-sm">사유(선택)</label>
+                    <input type="text" class="form-control form-control-sm" id="holding_reason" name="reason">
+                    <div class="invalid-feedback" id="reason_error"></div>
+                </div>
+                <div class="col-auto">
+                    <button type="submit" class="btn btn-primary btn-sm">홀딩 추가</button>
+                </div>
+           </div>
+        </form>
+
+        <hr>
+
+        {# 기존 홀딩 목록 영역 #}
+        <h6><i class="bi bi-list-ul"></i> 등록된 홀딩 내역</h6>
+        <div id="existingHoldingsList" style="max-height: 200px; overflow-y: auto;">
+            <p class="text-muted small" id="loadingHoldingsMsg">홀딩 목록을 불러오는 중...</p>
+            <ul class="list-group list-group-flush" id="holdingsListUl">
+                {# 홀딩 목록 아이템이 여기에 동적으로 추가됨 #}
+            </ul>
+        </div>
+
       </div>
       <div class="modal-footer">
         <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">닫기</button>
-        <button type="button" class="btn btn-primary">홀딩 저장 (구현 필요)</button>
+        {# 저장 버튼은 폼 안에 있으므로 제거 가능 #}
       </div>
     </div>
   </div>
@@ -176,23 +214,169 @@
 {% block scripts %}
 {{ super() }}
 <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.10.5/font/bootstrap-icons.css">
-{# 홀딩 모달 관련 JavaScript (향후 구현) #}
+{# 홀딩 모달 관련 JavaScript #}
 <script>
     const holdingModal = document.getElementById('holdingModal');
+    const addHoldingForm = document.getElementById('addHoldingForm');
+    const holdingsListUl = document.getElementById('holdingsListUl');
+    const loadingHoldingsMsg = document.getElementById('loadingHoldingsMsg');
+    const holdingModalTicketIdInput = document.getElementById('holdingModalTicketId');
+
+    // 홀딩 목록 로드 함수
+    function loadHoldings(ticketId) {
+        holdingsListUl.innerHTML = ''; // 기존 목록 비우기
+        loadingHoldingsMsg.textContent = '홀딩 목록을 불러오는 중...';
+        loadingHoldingsMsg.style.display = 'block';
+
+        fetch(`/admin/api/ticket/${ticketId}/holdings`)
+            .then(response => {
+                if (!response.ok) throw new Error('Failed to load holdings');
+                return response.json();
+            })
+            .then(data => {
+                loadingHoldingsMsg.style.display = 'none';
+                if (data.holdings && data.holdings.length > 0) {
+                    data.holdings.forEach(holding => {
+                        const li = document.createElement('li');
+                        li.classList.add('list-group-item', 'd-flex', 'justify-content-between', 'align-items-center', 'list-group-item-sm');
+                        const startDate = new Date(holding.start_date).toLocaleDateString();
+                        const endDate = new Date(holding.end_date).toLocaleDateString();
+                        li.innerHTML = `
+                            <div>
+                                ${startDate} ~ ${endDate} (${holding.duration_days}일)
+                                ${holding.reason ? '<br><small class="text-muted">' + holding.reason + '</small>' : ''}
+                            </div>
+                            <button class="btn btn-danger btn-sm delete-holding-btn" data-holding-id="${holding.id}">삭제</button>
+                        `;
+                        holdingsListUl.appendChild(li);
+                    });
+                    // 삭제 버튼 이벤트 리스너 추가
+                    addDeleteHoldingListeners();
+                } else {
+                    holdingsListUl.innerHTML = '<li class="list-group-item text-muted small">등록된 홀딩 내역이 없습니다.</li>';
+                }
+            })
+            .catch(error => {
+                console.error("Error loading holdings:", error);
+                loadingHoldingsMsg.textContent = '홀딩 목록 로드 실패';
+            });
+    }
+
+    // 홀딩 삭제 버튼 이벤트 리스너 추가 함수
+    function addDeleteHoldingListeners() {
+        const deleteButtons = holdingsListUl.querySelectorAll('.delete-holding-btn');
+        deleteButtons.forEach(button => {
+            button.addEventListener('click', function() {
+                const holdingId = this.getAttribute('data-holding-id');
+                const ticketId = holdingModalTicketIdInput.value;
+                if (!holdingId || !ticketId) return;
+
+                if (confirm(`정말로 이 홀딩(ID: ${holdingId})을 삭제하시겠습니까? 이용권 만료일이 변경됩니다.`)) {
+                    const csrfToken = addHoldingForm.querySelector('input[name="csrf_token"]').value; // 폼에서 CSRF 토큰 가져오기
+
+                    fetch(`/admin/holding/delete/${holdingId}`, {
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/json', // 필요시 설정
+                            'X-CSRFToken': csrfToken // 헤더에 CSRF 토큰 추가
+                        },
+                        // body: JSON.stringify({}) // POST 바디 필요시
+                    })
+                    .then(response => response.json())
+                    .then(data => {
+                        if (data.success) {
+                            // alert('홀딩이 삭제되었습니다.'); // alert 대신 flash 메시지가 표시될 것임
+                            loadHoldings(ticketId); // 목록 새로고침
+                            // TODO: 회원 상세 페이지의 티켓 목록도 새로고침하거나, 페이지 리로드 필요
+                            location.reload(); // 간단하게 페이지 전체 새로고침
+                        } else {
+                            alert(`홀딩 삭제 실패: ${data.message || '알 수 없는 오류'}`);
+                        }
+                    })
+                    .catch(error => {
+                        console.error("Error deleting holding:", error);
+                        alert('홀딩 삭제 중 오류가 발생했습니다.');
+                    });
+                }
+            });
+        });
+    }
+
+
+    // 모달이 보여질 때 실행될 이벤트 리스너
     if (holdingModal) {
         holdingModal.addEventListener('show.bs.modal', event => {
-            const button = event.relatedTarget; // 모달을 트리거한 버튼
+            const button = event.relatedTarget;
             const ticketId = button.getAttribute('data-ticket-id');
             const ticketName = button.getAttribute('data-ticket-name');
 
             const modalTitle = holdingModal.querySelector('.modal-title #holdingTicketName');
-            const modalBodyTicketId = holdingModal.querySelector('.modal-body #holdingTicketId');
+            holdingModalTicketIdInput.value = ticketId; // 숨겨진 input에 ticketId 저장
 
             if (modalTitle) modalTitle.textContent = ticketName;
-            if (modalBodyTicketId) modalBodyTicketId.textContent = ticketId;
 
-            // TODO: 여기에 Ajax로 해당 ticketId의 홀딩 정보 로드 및 폼 생성 로직 추가
-            console.log(`Loading holding info for ticket ID: ${ticketId}`);
+            // 폼 action 설정
+            addHoldingForm.action = `/admin/ticket/${ticketId}/holding/add`;
+            // 폼 필드 초기화
+            addHoldingForm.reset();
+            // 폼 오류 메시지 초기화
+             document.querySelectorAll('#addHoldingForm .invalid-feedback').forEach(el => el.textContent = '');
+             document.querySelectorAll('#addHoldingForm .is-invalid').forEach(el => el.classList.remove('is-invalid'));
+
+
+            // 기존 홀딩 목록 로드
+            loadHoldings(ticketId);
+        });
+    }
+
+    // 홀딩 추가 폼 제출 이벤트 처리 (Ajax)
+    if (addHoldingForm) {
+        addHoldingForm.addEventListener('submit', function(event) {
+            event.preventDefault(); // 기본 폼 제출 방지
+            const ticketId = holdingModalTicketIdInput.value;
+            const formData = new FormData(this);
+            const csrfToken = formData.get('csrf_token'); // CSRF 토큰 가져오기
+
+            // 오류 메시지 초기화
+            document.querySelectorAll('#addHoldingForm .invalid-feedback').forEach(el => el.textContent = '');
+            document.querySelectorAll('#addHoldingForm .is-invalid').forEach(el => el.classList.remove('is-invalid'));
+
+            fetch(this.action, {
+                method: 'POST',
+                body: formData,
+                headers: {
+                     'X-CSRFToken': csrfToken // 헤더에 CSRF 토큰 추가
+                }
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.success) {
+                    // alert('홀딩이 추가되었습니다.'); // alert 대신 flash 메시지가 표시될 것임
+                    loadHoldings(ticketId); // 목록 새로고침
+                    this.reset(); // 폼 리셋
+                    // TODO: 회원 상세 페이지 티켓 목록 업데이트 또는 페이지 리로드
+                    location.reload(); // 간단하게 페이지 전체 새로고침
+                } else {
+                    // 폼 유효성 검증 오류 표시
+                    if (data.errors) {
+                        for (const fieldName in data.errors) {
+                            const errorField = document.getElementById(`${fieldName}_error`);
+                            const inputField = document.getElementById(`holding_${fieldName}`); // 필드 ID 규칙 가정
+                            if (errorField) {
+                                errorField.textContent = data.errors[fieldName];
+                            }
+                             if (inputField) {
+                                inputField.classList.add('is-invalid'); // 부트스트랩 오류 스타일 적용
+                            }
+                        }
+                    }
+                    alert(`홀딩 추가 실패: ${data.message || '입력 값을 확인해주세요.'}`);
+                }
+            })
+            .catch(error => {
+                console.error("Error adding holding:", error);
+                alert('홀딩 추가 중 오류가 발생했습니다.');
+            });
         });
     }
 </script>
