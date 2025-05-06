@@ -62,7 +62,8 @@ def edit_booth(booth_id):
     elif request.method == 'GET':
         # GET 요청 시, 현재 타석 정보로 폼 필드 채우기
         form.name.data = booth.name
-        form.system_type.data = booth.system_type  # <<< 이 줄 추가!
+        # form.system_type.data = booth.system_type  # <<< 이 줄 추가!
+        form.system_type.data = booth.system_type.value # <<< Enum 멤버의 'value' (문자열)를 할당하도록 변경!
         form.is_available.data = booth.is_available
         form.memo.data = booth.memo
 
