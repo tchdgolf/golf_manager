@@ -73,27 +73,28 @@
         const defaultValidityDaysField = document.getElementById('default_validity_days');
 
         function toggleFields() {
-            const category = categoryField.value;
+            if (!categoryField) return; // categoryField가 없을 경우를 대비
+            const categoryValue = categoryField.value; // 선택된 <option>의 value (예: "기간권")
 
-            // 기본적으로 모든 관련 필드 비활성화/숨김 또는 읽기 전용 처리
-            // 여기서는 간단히 입력 가능 여부만 조절
+            // 기본적으로 모든 관련 필드 비활성화
             durationDaysField.disabled = true;
             totalCountField.disabled = true;
             totalLessonCountField.disabled = true;
             defaultValidityDaysField.disabled = true;
 
-            if (category === 'PERIOD') { // TicketCategory.PERIOD.name
+            // TicketCategory Enum의 value 값과 비교
+            if (categoryValue === "{{ TicketCategory.PERIOD.value }}") { // "기간권"
                 durationDaysField.disabled = false;
-            } else if (category === 'COUNT') {
+            } else if (categoryValue === "{{ TicketCategory.COUNT.value }}") { // "횟수권"
                 totalCountField.disabled = false;
                 defaultValidityDaysField.disabled = false;
-            } else if (category === 'COUPON') {
+            } else if (categoryValue === "{{ TicketCategory.COUPON.value }}") { // "쿠폰 레슨"
                 totalCountField.disabled = false;
                 totalLessonCountField.disabled = false;
                 defaultValidityDaysField.disabled = false;
-            } else if (category === 'LESSON_ADD') {
+            } else if (categoryValue === "{{ TicketCategory.LESSON_ADD.value }}") { // "레슨 추가"
                 totalLessonCountField.disabled = false;
-            } else if (category === 'COMBO') {
+            } else if (categoryValue === "{{ TicketCategory.COMBO.value }}") { // "종합권"
                 durationDaysField.disabled = false;
                 totalLessonCountField.disabled = false;
             }
@@ -101,7 +102,9 @@
 
         if (categoryField) {
             categoryField.addEventListener('change', toggleFields);
-            toggleFields(); // 페이지 로드 시 초기 상태 설정
+            // 페이지 로드 시, 또는 수정 페이지에서 기존 값이 있을 때 초기 상태 설정
+            // (만약 form.category.data가 템플릿에 전달된다면 해당 값으로 초기화 가능)
+            toggleFields();
         }
     });
 </script>

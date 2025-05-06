@@ -46,7 +46,8 @@ def add_ticket_template():
         except Exception as e:
             db.session.rollback()
             flash(f'템플릿 추가 중 오류 발생: {e}', 'danger')
-    return render_template('ticket_template/template_form.html', form=form, title="이용권 템플릿 추가")
+    return render_template('ticket_template/template_form.html', form=form, title="이용권 템플릿 추가",
+                           TicketCategory=TicketCategory)
 
 # 이용권 템플릿 수정
 @bp.route('/ticket_templates/edit/<int:template_id>', methods=['GET', 'POST'])
@@ -70,7 +71,9 @@ def edit_ticket_template(template_id):
     # GET 요청 시에는 obj=template 으로 이미 필드가 채워짐
     # (또는 수동으로: elif request.method == 'GET': form.process(obj=template) )
 
-    return render_template('ticket_template/template_form.html', form=form, title="이용권 템플릿 수정", template=template)
+    return render_template('ticket_template/template_form.html',
+                           form=form, title="이용권 템플릿 수정", template=template,
+                           TicketCategory=TicketCategory) # TicketCategory 전달
 
 # 이용권 템플릿 활성/비활성 토글 (논리적 삭제 대신)
 @bp.route('/ticket_templates/toggle_active/<int:template_id>', methods=['POST'])
