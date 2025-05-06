@@ -1,0 +1,267 @@
+{% extends "base.html" %}
+{% import "bootstrap/wtf.html" as wtf %}
+
+{% block title %}{{ title }} - 관리자{% endblock %}
+
+{% block content %}
+<h2 class="mb-4">{{ title }}</h2>
+
+<form method="POST" novalidate id="issueTicketForm">
+    {{ form.hidden_tag() }} {# CSRF 토큰 등 #}
+
+    <div class="row">
+        {# 좌측: 발급 폼 #}
+        <div class="col-md-7">
+            <fieldset class="mb-3 p-3 border rounded">
+                <legend class="fs-6 fw-bold">기본 정보</legend>
+                <div class="mb-3">
+                    {{ wtf.form_field(form.user_id, id="user_select") }}
+                </div>
+                <div class="mb-3">
+                    {{ wtf.form_field(form.ticket_template_id, id="template_select") }}
+                </div>
+                 <div class="mb-3">
+                    {{ wtf.form_field(form.name) }}
+                </div>
+                <div class="row mb-3">
+                    <div class="col-md-6">
+                        {{ wtf.form_field(form.start_date) }}
+                    </div>
+                </div>
+            </fieldset>
+
+            <fieldset class="mb-3 p-3 border rounded bg-light" id="manual_input_fields" style="display: none;">
+                <legend class="fs-6 fw-bold text-muted">템플릿 미사용 시 직접 입력 (또는 템플릿 정보 덮어쓰기)</legend>
+                 <div class="alert alert-info alert-sm py-1" role="alert" style="font-size: 0.8rem;">
+                    템플릿을 선택하면 아래 정보는 자동으로 채워집니다. 필요시 직접 수정할 수 있습니다.
+                </div>
+                <div class="row mb-2">
+                    <div class="col-md-6">
+                        {{ wtf.form_field(form.duration_days_manual) }}
+                    </div>
+                     <div class="col-md-6">
+                        {{ wtf.form_field(form.validity_days_manual, help_text="기간(일)과 중복 입력 시 기간(일)이 우선됩니다.") }}
+                    </div>
+                </div>
+                <div class="row mb-2">
+                    <div class="col-md-6">
+                        {{ wtf.form_field(form.total_taseok_count_manual) }}
+                    </div>
+                    <div class="col-md-6">
+                        {{ wtf.form_field(form.total_lesson_count_manual) }}
+                    </div>
+                </div>
+            </fieldset>
+
+            <fieldset class="mb-3 p-3 border rounded">
+                <legend class="fs-6 fw-bold">추가 정보</legend>
+                 <div class="row">
+                    <div class="col-md-6">
+                        {{ wtf.form_field(form.pro_id) }}
+                    </div>
+                    <div class="col-md-6">
+                        {{ wtf.form_field(form.price) }}
+                    </div>
+                </div>
+                {{ wtf.form_field(form.memo, rows=3) }}
+            </fieldset>
+
+            <div class="mt-4">
+                {{ wtf.form_field(form.submit, class="btn btn-primary btn-lg") }}
+                <a href="{{ url_for('admin.list_users') }}" class="btn btn-secondary ms-2">취소</a>
+            </div>
+        </div>
+
+        {# 우측: 선택된 회원의 현재 이용권 목록 (Ajax로 채우거나 초기 로드) #}
+        <div class="col-md-5">
+            <h4 class="mb-3">선택된 회원 정보 (향후)</h4>
+            <div id="selected_user_info_area" class="p-3 border rounded bg-light" style="min-height: 200px;">
+                <p class="text-muted" id="user_info_placeholder">회원을 선택하면 여기에 정보가 표시됩니다.</p>
+                <div id="user_details_content" style="display: none;">
+                    <p><strong>이름:</strong> <span id="user_info_name">-</span></p>
+                    <p><strong>연락처:</strong> <span id="user_info_phone">-</span></p>
+                    <p><strong>최종만료일:</strong> <span id="user_info_master_expiry">-</span></p>
+                    <p><strong>총 잔여레슨:</strong> <span id="user_info_total_lesson">-</span> 회</p>
+                </div>
+
+                <h5 class="mt-3">보유 이용권 목록</h5>
+                <div id="current_tickets_list" style="max-height: 300px; overflow-y: auto;">
+                    {% if current_tickets %}
+                        <ul class="list-group list-group-flush">
+                        {% for ticket in current_tickets %}
+                            <li class="list-group-item list-group-item-sm py-1">
+                                {{ ticket.name }} (만료: {{ ticket.expiry_date.strftime('%Y-%m-%d') if ticket.expiry_date else '없음' }})
+                                <br>
+                                <small class="text-muted">
+                                    타석: {{ ticket.remaining_taseok_count if ticket.remaining_taseok_count is not none else '-' }}/{{ ticket.total_taseok_count if ticket.total_taseok_count is not none else '-' }} |
+                                    레슨: {{ ticket.remaining_lesson_count if ticket.remaining_lesson_count is not none else '-' }}/{{ ticket.total_lesson_count if ticket.total_lesson_count is not none else '-' }}
+                                </small>
+                            </li>
+                        {% endfor %}
+                        </ul>
+                    {% else %}
+                        <p class="text-muted small" id="no_tickets_message">보유한 이용권이 없거나 회원이 선택되지 않았습니다.</p>
+                    {% endif %}
+                     <ul class="list-group list-group-flush" id="ajax_tickets_list_ul" style="display:none;">
+                        {# Ajax로 채워질 목록 아이템 템플릿 (숨김) #}
+                     </ul>
+                </div>
+            </div>
+        </div>
+    </div>
+</form>
+{% endblock %}
+
+{% block scripts %}
+{{ super() }}
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.10.5/font/bootstrap-icons.css">
+<script>
+    document.addEventListener('DOMContentLoaded', function() {
+        const userSelect = document.getElementById('user_select');
+        const templateSelect = document.getElementById('template_select');
+        const manualInputFieldsDiv = document.getElementById('manual_input_fields');
+
+        // 필드 ID 매핑
+        const fieldIds = {
+            name: 'name',
+            duration_days_manual: 'duration_days_manual',
+            total_taseok_count_manual: 'total_taseok_count_manual',
+            total_lesson_count_manual: 'total_lesson_count_manual',
+            validity_days_manual: 'validity_days_manual',
+            price: 'price'
+            // start_date 는 템플릿에서 직접 제어하지 않음
+        };
+
+        // 템플릿 선택 시 자동 채우기 및 수동 입력 필드 표시/숨김
+        function handleTemplateChange() {
+            const templateId = templateSelect.value;
+            manualInputFieldsDiv.style.display = 'block'; // 기본적으로 수동 입력 필드 표시 (템플릿 정보로 덮어쓰기 가능)
+
+            if (templateId) {
+                fetch(`/admin/api/ticket_template/${templateId}`)
+                    .then(response => response.json())
+                    .then(data => {
+                        if (data.error) {
+                            console.error("Error fetching template:", data.error);
+                            // 모든 수동 입력 필드 활성화 및 값 초기화
+                            Object.values(fieldIds).forEach(id => {
+                                const field = document.getElementById(id);
+                                if(field) field.value = '';
+                            });
+                            return;
+                        }
+                        // 템플릿 정보로 폼 필드 채우기 (기존 값 덮어쓰기)
+                        document.getElementById(fieldIds.name).value = data.name || '';
+                        document.getElementById(fieldIds.duration_days_manual).value = data.duration_days || '';
+                        document.getElementById(fieldIds.total_taseok_count_manual).value = data.total_count || '';
+                        document.getElementById(fieldIds.total_lesson_count_manual).value = data.total_lesson_count || '';
+                        document.getElementById(fieldIds.validity_days_manual).value = data.default_validity_days || '';
+                        document.getElementById(fieldIds.price).value = data.price || '';
+
+                    })
+                    .catch(error => {
+                        console.error('Fetch error:', error);
+                        // 오류 발생 시 수동 입력 필드 활성화 유지
+                    });
+            } else { // 템플릿 선택 안 함
+                 // 수동 입력 필드의 값 초기화 (선택적)
+                document.getElementById(fieldIds.name).value = ''; // 이름은 비워둠
+                // Object.values(fieldIds).forEach(id => {
+                //     if (id !== fieldIds.name) { // 이름 제외
+                //         const field = document.getElementById(id);
+                //         if(field) field.value = '';
+                //     }
+                // });
+            }
+        }
+
+        // 회원 선택 시 보유 이용권 목록 업데이트 (Ajax)
+        function loadUserTickets(userId) {
+            const ticketsListUl = document.getElementById('ajax_tickets_list_ul');
+            const noTicketsMessage = document.getElementById('no_tickets_message');
+            const initialTicketsList = document.getElementById('current_tickets_list'); // 초기 로드된 목록
+            const userInfoPlaceholder = document.getElementById('user_info_placeholder');
+            const userDetailsContent = document.getElementById('user_details_content');
+
+
+            if (initialTicketsList) initialTicketsList.style.display = 'none'; // 초기 목록 숨김
+            ticketsListUl.innerHTML = ''; // 기존 Ajax 목록 비우기
+            ticketsListUl.style.display = 'none';
+            if (noTicketsMessage) noTicketsMessage.style.display = 'block';
+
+            userInfoPlaceholder.style.display = 'block';
+            userDetailsContent.style.display = 'none';
+
+
+            if (!userId) {
+                return;
+            }
+
+            // 여기에 회원 상세 정보 API 호출도 추가 가능
+            // fetch(`/admin/api/user/${userId}/details`) ...
+
+            fetch(`/admin/api/user/${userId}/tickets`) // 이 API는 아직 만들지 않음!
+                .then(response => response.json())
+                .then(data => {
+                    userInfoPlaceholder.style.display = 'none';
+                    userDetailsContent.style.display = 'block';
+                    // 임시로 API 없으므로 이름/연락처만 표시 (선택된 user_id로 user_select의 text를 파싱)
+                    const selectedOption = userSelect.options[userSelect.selectedIndex];
+                    document.getElementById('user_info_name').textContent = selectedOption ? selectedOption.text.split(' (')[0] : '-';
+                    document.getElementById('user_info_phone').textContent = selectedOption ? selectedOption.text.match(/\(([^)]+)\)/)[1] : '-';
+                    // master_expiry_date, remaining_lesson_total 은 API로 가져와야 함
+                    document.getElementById('user_info_master_expiry').textContent = data.master_expiry_date || '정보 없음';
+                    document.getElementById('user_info_total_lesson').textContent = data.remaining_lesson_total !== null ? data.remaining_lesson_total : '정보 없음';
+
+
+                    if (data.tickets && data.tickets.length > 0) {
+                        if (noTicketsMessage) noTicketsMessage.style.display = 'none';
+                        ticketsListUl.style.display = 'block';
+                        data.tickets.forEach(ticket => {
+                            const li = document.createElement('li');
+                            li.classList.add('list-group-item', 'list-group-item-sm', 'py-1');
+                            const expiryDate = ticket.expiry_date ? new Date(ticket.expiry_date).toLocaleDateString() : '없음';
+                            const taseokInfo = `${ticket.remaining_taseok_count !== null ? ticket.remaining_taseok_count : '-'}/${ticket.total_taseok_count !== null ? ticket.total_taseok_count : '-'}`;
+                            const lessonInfo = `${ticket.remaining_lesson_count !== null ? ticket.remaining_lesson_count : '-'}/${ticket.total_lesson_count !== null ? ticket.total_lesson_count : '-'}`;
+
+                            li.innerHTML = `
+                                ${ticket.name} (만료: ${expiryDate})
+                                <br>
+                                <small class="text-muted">
+                                    타석: ${taseokInfo} | 레슨: ${lessonInfo}
+                                </small>
+                            `;
+                            ticketsListUl.appendChild(li);
+                        });
+                    } else {
+                         if (noTicketsMessage) noTicketsMessage.textContent = '보유한 이용권이 없습니다.';
+                    }
+                })
+                .catch(error => {
+                    console.error('Error fetching user tickets:', error);
+                    if (noTicketsMessage) noTicketsMessage.textContent = '이용권 정보를 가져오는 데 실패했습니다.';
+                    userInfoPlaceholder.style.display = 'none'; // 오류 시에도 플레이스홀더 숨김
+                    userDetailsContent.style.display = 'block'; // 이름/연락처라도 보이게
+                     document.getElementById('user_info_name').textContent = userSelect.options[userSelect.selectedIndex].text.split(' (')[0];
+                    document.getElementById('user_info_phone').textContent = userSelect.options[userSelect.selectedIndex].text.match(/\(([^)]+)\)/)[1];
+
+                });
+        }
+
+
+        if (templateSelect) {
+            templateSelect.addEventListener('change', handleTemplateChange);
+            handleTemplateChange(); // 초기 로드 시 실행
+        }
+        if (userSelect) {
+            userSelect.addEventListener('change', function() {
+                loadUserTickets(this.value);
+            });
+            // 페이지 로드 시 선택된 유저가 있으면 바로 로드
+            if (userSelect.value) {
+                loadUserTickets(userSelect.value);
+            }
+        }
+    });
+</script>
+{% endblock %}

@@ -1,8 +1,9 @@
 # app/forms/admin_forms.py
-from wtforms import StringField, SubmitField, SelectField, BooleanField, TextAreaField, PasswordField, IntegerField
+from wtforms import StringField, SubmitField, SelectField, BooleanField, TextAreaField, PasswordField, IntegerField, DateField
 from flask_wtf import FlaskForm
+from wtforms.widgets import DateInput 
 from wtforms.validators import DataRequired, Length, ValidationError, Email, Optional, NumberRange
-from app.models import Pro, Booth, User, TicketTemplate
+from app.models import Pro, Booth, User, TicketTemplate, Ticket
 from app.models.enums import BoothSystemType # Enum 임포트
 from app.models.ticket_template import TicketCategory 
 
@@ -173,3 +174,56 @@ class TicketTemplateForm(FlaskForm):
                 self.total_lesson_count.errors.append('종합권은 총 레슨 횟수가 필수입니다.')
                 is_valid = False
         return is_valid
+    
+
+class TicketIssueForm(FlaskForm):
+    """이용권 발급 폼"""
+    user_id = SelectField('회원 선택', coerce=int, validators=[DataRequired(message="회원을 선택해주세요.")])
+    # user_id의 choices는 라우트에서 동적으로 채워줍니다.
+
+    ticket_template_id = SelectField('템플릿 선택 (선택 사항)', coerce=int, validators=[Optional()])
+    # ticket_template_id의 choices도 라우트에서 동적으로 채워줍니다.
+
+    # --- 템플릿 미사용 시 또는 템플릿 정보 오버라이드 시 직접 입력할 필드들 ---
+    # (템플릿 선택 시 이 필드들은 자동으로 채워지거나 비활성화될 수 있음 - JavaScript로 처리)
+    name = StringField('이용권 이름', validators=[DataRequired(message="이용권 이름을 입력해주세요."), Length(max=150)],
+                       description="템플릿 선택 시 자동 생성될 수 있습니다. 직접 수정도 가능합니다.")
+
+    start_date = DateField('이용 시작일', validators=[DataRequired(message="시작일을 선택해주세요.")],
+                           format='%Y-%m-%d', widget=DateInput()) # format 지정, DateInput 위젯 사용
+
+    # 기간권/종합권 (템플릿 미사용 시)
+    duration_days_manual = IntegerField('유효 기간 (일 수)', validators=[Optional(), NumberRange(min=1)],
+                                     description="기간제 상품 직접 입력 시. (예: 30, 90)")
+
+    # 횟수권/쿠폰/레슨추가/종합권 (템플릿 미사용 시)
+    total_taseok_count_manual = IntegerField('총 타석 횟수', validators=[Optional(), NumberRange(min=1)],
+                                           description="횟수제 상품 직접 입력 시 (타석).")
+    total_lesson_count_manual = IntegerField('총 레슨 횟수', validators=[Optional(), NumberRange(min=0)], # 0회도 가능 (타석만 이용권)
+                                            description="횟수제 상품 직접 입력 시 (레슨).")
+    # 횟수제 유효기간 (템플릿 미사용 시)
+    validity_days_manual = IntegerField('횟수제 유효기간 (일 수)', validators=[Optional(), NumberRange(min=1)],
+                                      description="횟수제 상품 직접 입력 시 유효 기간.")
+    # --- 여기까지 직접 입력 필드 ---
+
+    pro_id = SelectField('담당 프로 (선택 사항)', coerce=int, validators=[Optional()])
+    # pro_id의 choices도 라우트에서 동적으로 채워줍니다.
+
+    price = IntegerField('실제 판매 가격 (원)', validators=[Optional(), NumberRange(min=0)])
+    memo = TextAreaField('메모 (선택 사항)')
+    submit = SubmitField('이용권 발급')
+
+    # (선택적) 발급 폼 유효성 검사 로직 추가 가능
+    # 예: 템플릿을 선택하지 않았을 경우, 직접 입력 필드들이 제대로 채워졌는지 등
+    def validate(self, extra_validators=None):
+        if not super().validate(extra_validators):
+            return False
+
+        is_template_selected = bool(self.ticket_template_id.data)
+        # 여기에 추가적인 복합 유효성 검사 로직을 넣을 수 있습니다.
+        # 예를 들어, 템플릿을 선택하지 않았는데 필수 정보(기간 또는 횟수 등)가 누락된 경우
+        # if not is_template_selected:
+        #     if not self.duration_days_manual.data and not self.total_taseok_count_manual.data:
+        #         self.name.errors.append("템플릿 미선택 시 기간 또는 총 타석 횟수 중 하나는 입력해야 합니다.")
+        #         return False
+        return True
