@@ -235,3 +235,32 @@ class TicketIssueForm(FlaskForm):
         #         self.name.errors.append("템플릿 미선택 시 기간 또는 총 타석 횟수 중 하나는 입력해야 합니다.")
         #         return False
         return True
+    
+class TicketEditForm(FlaskForm):
+    """발급된 이용권 수정 폼"""
+    # 수정 가능 필드
+    name = StringField('이용권 이름', validators=[DataRequired(), Length(max=150)])
+    # start_date = DateField('이용 시작일', validators=[DataRequired()], format='%Y-%m-%d', widget=DateInput()) # 시작일 수정은 정책 검토 필요 (만료일 연동 등 복잡성)
+    # expiry_date = DateField('만료일', validators=[Optional()], format='%Y-%m-%d', widget=DateInput()) # 만료일 직접 수정 기능? (홀딩으로 관리하는 것이 원칙)
+
+    # 잔여 횟수 직접 수정 (오류 정정용)
+    remaining_taseok_count = IntegerField('남은 타석 횟수', validators=[Optional(), NumberRange(min=0)])
+    remaining_lesson_count = IntegerField('남은 레슨 횟수', validators=[Optional(), NumberRange(min=0)])
+
+    pro_id = SelectField('담당 프로', coerce=coerce_int_or_none, validators=[Optional()]) # coerce 함수 재사용
+    price = IntegerField('판매 가격 (원)', validators=[Optional(), NumberRange(min=0)])
+    memo = TextAreaField('메모')
+    is_active = BooleanField('활성 상태', description="만료/소진 시 자동으로 비활성화됩니다. 강제로 비활성화할 수 있습니다.")
+
+    submit = SubmitField('수정 내용 저장')
+
+    # 총 횟수 필드 (정보 표시용 또는 수정용 - 정책 결정 필요)
+    # total_taseok_count = IntegerField('총 타석 횟수', render_kw={'readonly': True}) # 읽기 전용 표시 예시
+    # total_lesson_count = IntegerField('총 레슨 횟수', render_kw={'readonly': True})
+
+    # 폼 초기화 시 pro_id choices 로딩 필요
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        # 프로 선택지 동적 로딩
+        self.pro_id.choices = [('', '담당 프로 없음')] + \
+                              [(p.id, p.name) for p in Pro.query.order_by(Pro.name).all()]

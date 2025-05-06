@@ -119,14 +119,13 @@
                              <button type="button" class="btn btn-sm btn-outline-secondary me-1" data-bs-toggle="modal" data-bs-target="#holdingModal" data-ticket-id="{{ ticket.id }}" data-ticket-name="{{ ticket.name }}">
                                 <i class="bi bi-pause-btn"></i> 홀딩 관리
                              </button>
-                             {# 수정 버튼 (향후 활성화) #}
                              <a href="{{ url_for('admin.edit_ticket', ticket_id=ticket.id) }}" class="btn btn-sm btn-outline-primary me-1">
                                 <i class="bi bi-pencil-square"></i> 수정
                              </a>
                              {# 삭제 버튼 (향후 활성화, 조건부 표시) #}
-                             <form action="{{ url_for('admin.delete_ticket', ticket_id=ticket.id) }}" method="POST" class="d-inline" onsubmit="return confirm('정말로 이 이용권을 삭제하시겠습니까? 사용 내역 및 레슨 횟수 연동에 영향을 줄 수 있습니다.');">
+                             <form action="#" method="POST" class="d-inline"> {# action="#" 또는 비워둠 #}
                                 <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-                                <button type="submit" class="btn btn-sm btn-outline-danger" {{ 'disabled' if ticket.bookings_primary.count() > 0 }}> {# 예약 있으면 비활성화 (임시) #}
+                                <button type="submit" class="btn btn-sm btn-outline-danger" disabled title="삭제 (준비중)">
                                     <i class="bi bi-trash"></i> 삭제
                                 </button>
                             </form>

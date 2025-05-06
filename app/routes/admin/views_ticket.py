@@ -189,3 +189,74 @@ def get_user_tickets_info(user_id):
         'remaining_lesson_total': user.remaining_lesson_total,
         'tickets': tickets_data
     })
+
+@bp.route('/tickets/edit/<int:ticket_id>', methods=['GET', 'POST'])
+def edit_ticket(ticket_id):
+    ticket = db.session.get(Ticket, ticket_id)
+    if not ticket:
+        flash('해당 이용권을 찾을 수 없습니다.', 'warning')
+        return redirect(url_for('admin.list_users')) # 또는 다른 적절한 페이지
+
+    # 수정 전 레슨 횟수 기록 (User 모델 연동용)
+    original_remaining_lesson = ticket.remaining_lesson_count or 0
+
+    form = TicketEditForm(obj=ticket) # 폼 로드 시 현재 티켓 정보 채우기
+
+    if form.validate_on_submit():
+        # 폼 데이터로 티켓 객체 업데이트 (주의: obj=ticket으로 초기화했으므로, 필드별로 할당하는 것이 더 안전할 수 있음)
+        # form.populate_obj(ticket) # 이 방식 대신 필드별 할당 권장
+
+        ticket.name = form.name.data
+        # 시작일, 만료일, 총 횟수 등 수정 로직은 정책 확정 후 추가
+
+        # 잔여 횟수 업데이트
+        ticket.remaining_taseok_count = form.remaining_taseok_count.data
+        new_remaining_lesson = form.remaining_lesson_count.data or 0
+        ticket.remaining_lesson_count = new_remaining_lesson
+
+        ticket.pro_id = form.pro_id.data # coerce 함수 덕분에 int 또는 None
+        ticket.price = form.price.data
+        ticket.memo = form.memo.data
+        ticket.is_active = form.is_active.data # 관리자가 직접 활성 상태 변경
+
+        # 상태 재계산 (만료/소진 여부 등)
+        ticket.update_status()
+
+        # --- User 모델 연동 로직 (나중에 user_service로 분리) ---
+        try:
+            # 1. 레슨 횟수 변동분 계산 및 User.remaining_lesson_total 업데이트
+            lesson_diff = new_remaining_lesson - original_remaining_lesson
+            user = ticket.user # 티켓 소유자
+            if user:
+                user.remaining_lesson_total = (user.remaining_lesson_total or 0) + lesson_diff
+            else:
+                # 이론적으로는 발생하기 어려움
+                flash("티켓 소유자 정보를 찾을 수 없어 레슨 횟수 연동에 실패했습니다.", "error")
+
+            # 2. 최종 만료일 재계산 (ticket.update_status() 호출만으로도 될 수 있으나, 명시적 호출 권장)
+            # user_service.recalculate_master_expiry_date(user) # 서비스 구현 후 사용
+
+            db.session.commit()
+            flash(f'이용권 정보 (ID: {ticket.id})가 수정되었습니다.', 'success')
+            return redirect(url_for('admin.view_user', user_id=ticket.user_id)) # 회원 상세 페이지로
+
+        except Exception as e:
+            db.session.rollback()
+            flash(f'이용권 수정 중 오류가 발생했습니다: {e}', 'danger')
+
+    elif request.method == 'GET':
+         # GET 요청 시 pro_id 선택지가 form.__init__에서 로드됨
+         pass # obj=ticket으로 이미 폼 데이터 채워짐
+
+    return render_template('ticket/edit_ticket_form.html', form=form, title="이용권 정보 수정", ticket=ticket)
+
+# 이용권 삭제 (기본 틀)
+@bp.route('/tickets/delete/<int:ticket_id>', methods=['POST'])
+def delete_ticket(ticket_id):
+    # ... (이전 기본 틀 유지 - 나중에 구현) ...
+     ticket = db.session.get(Ticket, ticket_id) # 임시 추가 (리디렉션용)
+     if not ticket: ticket_user_id = None
+     else: ticket_user_id = ticket.user_id
+     flash(f'이용권 삭제 기능 (ID: {ticket_id}) 은 아직 구현되지 않았습니다.', 'info')
+     if ticket_user_id: return redirect(url_for('admin.view_user', user_id=ticket_user_id))
+     else: return redirect(url_for('admin.list_users')) # 임시
