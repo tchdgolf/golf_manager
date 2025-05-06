@@ -46,12 +46,12 @@ def add_new_holding(ticket_id: int, start_date: datetime.date, end_date: datetim
         return False, f"홀딩 시작일({start_date})은 이용권 시작일({ticket.start_date}) 이후여야 합니다.", None
 
     # 2. 홀딩 종료일 검사: 티켓 만료일 이내여야 함 (만료일이 있는 경우)
-    if ticket.expiry_date and end_date > ticket.expiry_date:
+    #if ticket.expiry_date and end_date > ticket.expiry_date:
          # 주의: 이미 연장된 만료일 기준으로 비교해야 할까? 아니면 홀딩 적용 전 만료일?
          # 일반적으로는 홀딩 적용 전/후 관계없이 '현재 시점의' 만료일을 넘어서는 홀딩은 이상함.
          # 하지만 정책적으로 만료일 이후까지 홀딩이 필요하다면 이 검사를 제거하거나 수정해야 함.
          # 여기서는 현재 만료일보다 이후 날짜로 홀딩 종료일을 설정할 수 없도록 제한.
-        return False, f"홀딩 종료일({end_date})은 현재 이용권 만료일({ticket.expiry_date}) 이전이어야 합니다.", None
+    #    return False, f"홀딩 종료일({end_date})은 현재 이용권 만료일({ticket.expiry_date}) 이전이어야 합니다.", None
 
     # 3. 홀딩 기간 자체 검증 (종료일 >= 시작일) - HoldingForm 에서 이미 검증하지만 여기서도 확인 가능
     if end_date < start_date:
@@ -135,10 +135,10 @@ def update_existing_holding(holding_id: int, new_start_date: datetime.date, new_
     if new_start_date < ticket.start_date:
         return False, f"홀딩 시작일({new_start_date})은 이용권 시작일({ticket.start_date}) 이후여야 합니다."
     # 만료일 비교는 좀 더 신중해야 함. 수정 시에는 현재 만료일을 기준으로 비교하는 것이 맞을 수 있음.
-    if ticket.expiry_date and new_end_date > ticket.expiry_date + datetime.timedelta(days=original_duration): # 복구될 만료일보다 뒤인지? 복잡.. 일단 현재 기준
+    #if ticket.expiry_date and new_end_date > ticket.expiry_date + datetime.timedelta(days=original_duration): # 복구될 만료일보다 뒤인지? 복잡.. 일단 현재 기준
         # 홀딩 기간 변경으로 인해 최종 만료일이 현재 티켓 만료일을 넘어서는 경우를 어떻게 처리할지 정책 필요.
         # 여기서는 일단 현재 만료일 + 원래 홀딩 기간을 넘어서지 못하게 제한 (보수적 접근)
-        pass # 일단 검증 보류
+    #    pass # 일단 검증 보류
 
     # 3. 다른 홀딩과의 겹침 검사 (수정 대상 홀딩 제외)
     overlapping_holding = Holding.query.filter(
@@ -156,7 +156,7 @@ def update_existing_holding(holding_id: int, new_start_date: datetime.date, new_
         holding.start_date = new_start_date
         holding.end_date = new_end_date
         holding.reason = new_reason
-        holding.calculate_duration() # 새 기간으로 duration_days 재계산
+        holding.calculate_duration()
         new_duration = holding.duration_days
 
         if new_duration <= 0:
@@ -164,9 +164,7 @@ def update_existing_holding(holding_id: int, new_start_date: datetime.date, new_
 
         # 티켓 만료일 업데이트
         if ticket.expiry_date:
-            # 1. 원래 홀딩 기간만큼 만료일을 먼저 복구
             expiry_date_before_update = ticket.expiry_date - datetime.timedelta(days=original_duration)
-            # 2. 새로운 홀딩 기간만큼 다시 연장
             ticket.expiry_date = expiry_date_before_update + datetime.timedelta(days=new_duration)
         else:
             # 만료일 없는 티켓은 변경 없음

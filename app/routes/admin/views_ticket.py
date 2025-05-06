@@ -6,7 +6,7 @@ from app.extensions import db
 from app.models import User, Pro, TicketTemplate, Ticket, Holding
 from app.forms.admin_forms import TicketIssueForm, TicketEditForm, HoldingForm
 from app.models.ticket_template import TicketCategory 
-from app.services.holding_service import add_new_holding, delete_existing_holding
+from app.services.holding_service import add_new_holding, delete_existing_holding, update_existing_holding
 
 # 이용권 발급 페이지
 @bp.route('/tickets/issue', methods=['GET', 'POST'])
@@ -268,8 +268,18 @@ def get_ticket_holdings(ticket_id):
             'duration_days': holding.duration_days,
             'reason': holding.reason
         })
+    ticket_info = {
+        'id': ticket.id,
+        'name': ticket.name,
+        'start_date': ticket.start_date.isoformat() if ticket.start_date else None,
+        'expiry_date': ticket.expiry_date.isoformat() if ticket.expiry_date else None
+    }
+    
     # 템플릿 렌더링 대신 JSON 반환
-    return jsonify({'holdings': holdings_data})
+    return jsonify({
+        'ticket_info': ticket_info, # 티켓 정보 추가
+        'holdings': holdings_data
+        })
 
 # 특정 홀딩 정보 조회 API (수정 폼 채우기용)
 @bp.route('/api/holding/<int:holding_id>')
@@ -325,23 +335,20 @@ def edit_holding(holding_id):
     form = HoldingForm() # POST 데이터로 폼 인스턴스 생성
 
     if form.validate_on_submit():
-        # TODO: 서비스 함수 호출하여 홀딩 수정 로직 실행
-        # success, message = update_existing_holding(
-        #     holding_id=holding_id,
-        #     new_start_date=form.start_date.data,
-        #     new_end_date=form.end_date.data,
-        #     new_reason=form.reason.data
-        # )
-        success = True # 임시
-        message = f"홀딩 수정 로직 (ID: {holding_id}) 구현 필요" # 임시
-        flash(message, 'info') # 임시
+        # 서비스 함수 호출하여 홀딩 수정 로직 실행
+        success, message = update_existing_holding(
+            holding_id=holding_id,
+            new_start_date=form.start_date.data,
+            new_end_date=form.end_date.data,
+            new_reason=form.reason.data
+        )
 
         if success:
-            # flash(message, 'success') # 성공 시 flash
+            flash(message, 'success') # 성공 시 flash
             return jsonify({'success': True, 'message': message})
         else:
-            # flash(message, 'danger') # 실패 시 flash
-            return jsonify({'success': False, 'message': message}), 400
+            flash(message, 'danger') # 실패 시 flash
+            return jsonify({'success': False, 'message': message}), 400 # 400 Bad Request
     else:
         # 폼 유효성 검증 실패
         errors = {field: error[0] for field, error in form.errors.items()}

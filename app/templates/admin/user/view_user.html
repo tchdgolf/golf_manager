@@ -182,6 +182,13 @@
                     <input type="text" class="form-control form-control-sm" id="holding_reason" name="reason">
                     <div class="invalid-feedback" id="reason_error"></div>
                 </div>
+                <div class="mb-3" id="expectedExpiryArea" style="display: none;"> {# 기본 숨김 #}
+                    <p class="mb-0 small text-muted">
+                        현재 만료일: <strong id="currentExpiryDate">-</strong> |
+                        홀딩 기간: <strong id="holdingDurationDays">-</strong> 일 |
+                        예상 만료일: <strong id="expectedExpiryDate" class="text-primary">-</strong>
+                    </p>
+                </div>
                 <div class="col-auto">
                     <button type="submit" class="btn btn-primary btn-sm" id="holdingSubmitButton">홀딩 추가</button> {# 버튼 텍스트/기능 JS에서 변경 #}
                     <button type="button" class="btn btn-secondary btn-sm" id="holdingCancelEditButton" style="display: none;">수정 취소</button> {# 수정 취소 버튼 #}
@@ -225,18 +232,67 @@
     const editingHoldingIdInput = document.getElementById('editingHoldingId'); // 수정 ID 저장용 input
     const holdingSubmitButton = document.getElementById('holdingSubmitButton');
     const holdingCancelEditButton = document.getElementById('holdingCancelEditButton');
+    const expectedExpiryArea = document.getElementById('expectedExpiryArea'); // 추가
+    const currentExpiryDateSpan = document.getElementById('currentExpiryDate'); // 추가
+    const holdingDurationDaysSpan = document.getElementById('holdingDurationDays'); // 추가
+    const expectedExpiryDateSpan = document.getElementById('expectedExpiryDate'); // 추가
+
+    let currentTicketExpiryDate = null; // 현재 티켓 만료일 저장 변수
 
     // 폼 초기화 및 추가 모드로 설정
     function resetHoldingFormToAddMode() {
+        if (!holdingForm) return; // holdingForm 변수가 유효한지 먼저 확인 (안전장치)
         holdingForm.reset();
-        holdingForm.action = ''; // action 초기화
-        editingHoldingIdInput.value = ''; // 수정 ID 초기화
+        holdingForm.action = '';
+        editingHoldingIdInput.value = '';
         holdingSubmitButton.textContent = '홀딩 추가';
-        holdingSubmitButton.classList.replace('btn-warning', 'btn-primary'); // 버튼 색상 원래대로
-        holdingCancelEditButton.style.display = 'none'; // 수정 취소 버튼 숨김
-        document.querySelectorAll('#holdingForm .invalid-feedback').forEach(el => el.textContent = '');
-        document.querySelectorAll('#holdingForm .is-invalid').forEach(el => el.classList.remove('is-invalid'));
+        holdingSubmitButton.classList.replace('btn-warning', 'btn-primary');
+        holdingCancelEditButton.style.display = 'none';
+        document.querySelectorAll('#holdingForm .invalid-feedback').forEach(el => el.textContent = ''); // '#holdingForm' 사용 확인
+        document.querySelectorAll('#holdingForm .is-invalid').forEach(el => el.classList.remove('is-invalid')); // '#holdingForm' 사용 확인
     }
+
+    // 날짜 차이 계산 함수 (일 수)
+    function calculateDaysBetween(startDate, endDate) {
+        if (!startDate || !endDate) return 0;
+        const start = new Date(startDate);
+        const end = new Date(endDate);
+        if (isNaN(start) || isNaN(end) || end < start) return 0; // 유효하지 않은 날짜 또는 순서 오류
+        // getTime()은 밀리초 반환. 일 수로 변환 (종료일 포함)
+        const diffTime = Math.abs(end - start);
+        const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24)) + 1;
+        return diffDays;
+    }
+
+    // 예상 만료일 계산 및 표시 함수
+    function updateExpectedExpiry() {
+        const startDateInput = document.getElementById('holding_start_date');
+        const endDateInput = document.getElementById('holding_end_date');
+        const startDate = startDateInput.value;
+        const endDate = endDateInput.value;
+
+        if (startDate && endDate && currentTicketExpiryDate) {
+            const holdingDuration = calculateDaysBetween(startDate, endDate);
+            holdingDurationDaysSpan.textContent = holdingDuration;
+
+            if (holdingDuration > 0) {
+                const currentExpiry = new Date(currentTicketExpiryDate);
+                 // 날짜 계산 시 UTC 문제 등을 피하기 위해 단순 일 수 더하기
+                currentExpiry.setDate(currentExpiry.getDate() + holdingDuration);
+                expectedExpiryDateSpan.textContent = currentExpiry.toLocaleDateString();
+                expectedExpiryArea.style.display = 'block'; // 영역 표시
+            } else {
+                expectedExpiryDateSpan.textContent = '-'; // 유효하지 않으면 초기화
+                expectedExpiryArea.style.display = 'none'; // 영역 숨김
+            }
+        } else {
+            holdingDurationDaysSpan.textContent = '-';
+            expectedExpiryDateSpan.textContent = '-';
+            expectedExpiryArea.style.display = 'none';
+        }
+    }
+
+    
 
     // 홀딩 목록 로드 함수
     function loadHoldings(ticketId) {
@@ -251,6 +307,14 @@
             })
             .then(data => {
                 loadingHoldingsMsg.style.display = 'none';
+                if (data.ticket_info && data.ticket_info.expiry_date) {
+                    currentTicketExpiryDate = data.ticket_info.expiry_date;
+                    currentExpiryDateSpan.textContent = new Date(currentTicketExpiryDate).toLocaleDateString();
+                } else {
+                    currentTicketExpiryDate = null;
+                    currentExpiryDateSpan.textContent = '없음';
+                }
+                updateExpectedExpiry(); // 초기 예상 만료일 업데이트
                 if (data.holdings && data.holdings.length > 0) {
                     data.holdings.forEach(holding => {
                         const li = document.createElement('li');
@@ -371,20 +435,16 @@
 
             if (modalTitle) modalTitle.textContent = ticketName;
 
-            // 폼 action 설정
-            addHoldingForm.action = `/admin/ticket/${ticketId}/holding/add`;
-            // 폼 필드 초기화
-            addHoldingForm.reset();
-            // 폼 오류 메시지 초기화
-             document.querySelectorAll('#addHoldingForm .invalid-feedback').forEach(el => el.textContent = '');
-             document.querySelectorAll('#addHoldingForm .is-invalid').forEach(el => el.classList.remove('is-invalid'));
+            // 1. 폼을 추가 모드로 초기화
+            resetHoldingFormToAddMode();
+            // 2. 폼의 기본 action을 설정 (추가 URL)
+            if (holdingForm) { // holdingForm 이 존재하는지 확인
+                 holdingForm.action = `/admin/ticket/${ticketId}/holding/add`;
+            }
+            expectedExpiryArea.style.display = 'none'; // 모달 열릴 때 예상 만료일 숨김
+            currentTicketExpiryDate = null; // 만료일 정보 초기화
 
-
-            // 기존 홀딩 목록 로드
-            loadHoldings(ticketId);
-            resetHoldingFormToAddMode(); // 모달 열릴 때 폼 초기화 (추가 모드)
-            holdingForm.action = `/admin/ticket/${holdingModalTicketIdInput.value}/holding/add`; // 기본 action 설정
-            loadHoldings(holdingModalTicketIdInput.value); // 목록 로드
+            loadHoldings(holdingModalTicketIdInput.value); // 목록 및 만료일 로드
         });
     }
 
@@ -435,5 +495,18 @@
             });
         });
     }
+
+    // --- ▼ 날짜 입력 변경 시 예상 만료일 업데이트 이벤트 리스너 추가 ▼ ---
+    const holdingStartDateInput = document.getElementById('holding_start_date');
+    const holdingEndDateInput = document.getElementById('holding_end_date');
+
+    if (holdingStartDateInput) {
+        holdingStartDateInput.addEventListener('change', updateExpectedExpiry);
+    }
+    if (holdingEndDateInput) {
+        holdingEndDateInput.addEventListener('change', updateExpectedExpiry);
+    }
+    // --- ▲ 이벤트 리스너 추가 끝 ▲ ---
+    
 </script>
 {% endblock %}
