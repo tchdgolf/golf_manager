@@ -1,9 +1,11 @@
 # app/forms/admin_forms.py
-from wtforms import StringField, SubmitField, SelectField, BooleanField, TextAreaField, PasswordField # PasswordField 추가
+from wtforms import StringField, SubmitField, SelectField, BooleanField, TextAreaField, PasswordField, IntegerField
 from flask_wtf import FlaskForm
-from wtforms.validators import DataRequired, Length, ValidationError, Email # Email 추가 (필요시)
-from app.models import Pro, Booth, User # Booth 모델 임포트 # Pro 모델 임포트 (중복 검사용)
+from wtforms.validators import DataRequired, Length, ValidationError, Email, Optional, NumberRange
+from app.models import Pro, Booth, User, TicketTemplate
 from app.models.enums import BoothSystemType # Enum 임포트
+from app.models.ticket_template import TicketCategory 
+
 
 
 class BoothForm(FlaskForm):
@@ -82,3 +84,92 @@ class UserEditForm(FlaskForm):
 class UserPasswordResetForm(FlaskForm):
     """회원 비밀번호 초기화 폼 (관리자용)"""
     submit = SubmitField('비밀번호를 \'0000\'으로 초기화')
+
+
+
+class TicketTemplateForm(FlaskForm):
+    """이용권 템플릿 등록/수정 폼"""
+    name = StringField('템플릿 이름', validators=[
+        DataRequired(message="템플릿 이름을 입력해주세요."),
+        Length(min=2, max=100)
+    ])
+    category = SelectField('이용권 대분류', coerce=TicketCategory, validators=[DataRequired()],
+                           choices=[(cat, cat.value) for cat in TicketCategory])
+
+    # 기간 관련 필드 (기간권, 종합권)
+    duration_days = IntegerField('유효 기간 (일 수)', validators=[Optional(), NumberRange(min=1)],
+                                 description="예: 1개월은 30, 3개월은 90으로 입력. 기간제 상품에만 해당.")
+
+    # 횟수 관련 필드 (횟수권, 쿠폰, 레슨추가, 종합권)
+    total_count = IntegerField('총 타석 이용 횟수', validators=[Optional(), NumberRange(min=1)],
+                               description="타석 이용이 포함된 횟수제 상품에만 해당.")
+    total_lesson_count = IntegerField('총 레슨 횟수', validators=[Optional(), NumberRange(min=1)],
+                                     description="레슨이 포함된 상품에만 해당.")
+
+    # 횟수제 상품의 기본 유효기간
+    default_validity_days = IntegerField('횟수제 기본 유효기간 (일 수)', validators=[Optional(), NumberRange(min=1)],
+                                         description="횟수권/쿠폰/레슨추가 상품의 기본 유효 기간 (예: 10회권 60일).")
+
+    price = IntegerField('기본 판매 가격 (원)', validators=[Optional(), NumberRange(min=0)])
+    description = TextAreaField('설명 (선택 사항)')
+    is_active = BooleanField('활성 상태 (판매 가능)', default=True)
+    submit = SubmitField('저장')
+
+    # 이름 중복 검증
+    def __init__(self, original_name=None, *args, **kwargs):
+        super(TicketTemplateForm, self).__init__(*args, **kwargs)
+        self.original_name = original_name
+
+    def validate_name(self, name):
+        if self.original_name and self.original_name == name.data:
+            return
+        template = TicketTemplate.query.filter_by(name=name.data).first()
+        if template:
+            raise ValidationError('이미 등록된 템플릿 이름입니다.')
+
+    # 카테고리별 필드 유효성 검사 (선택적 추가 가능)
+    def validate(self, extra_validators=None):
+        # 기본 WTForms 유효성 검사 먼저 실행
+        if not super(TicketTemplateForm, self).validate(extra_validators):
+            return False
+
+        # 카테고리별 필수 필드 검사
+        category = self.category.data
+        is_valid = True
+
+        if category == TicketCategory.PERIOD:
+            if not self.duration_days.data:
+                self.duration_days.errors.append('기간권은 유효 기간(일 수)이 필수입니다.')
+                is_valid = False
+        elif category == TicketCategory.COUNT:
+            if not self.total_count.data:
+                self.total_count.errors.append('횟수권은 총 타석 이용 횟수가 필수입니다.')
+                is_valid = False
+            if not self.default_validity_days.data: # 횟수권의 유효기간
+                self.default_validity_days.errors.append('횟수권은 기본 유효기간(일 수)이 필수입니다.')
+                is_valid = False
+        elif category == TicketCategory.COUPON:
+            if not self.total_count.data or not self.total_lesson_count.data:
+                self.total_count.errors.append('쿠폰 레슨은 총 타석 및 레슨 횟수가 필수입니다.')
+                self.total_lesson_count.errors.append('쿠폰 레슨은 총 타석 및 레슨 횟수가 필수입니다.')
+                is_valid = False
+            if self.total_count.data != self.total_lesson_count.data:
+                self.total_count.errors.append('쿠폰 레슨은 타석 횟수와 레슨 횟수가 동일해야 합니다.')
+                self.total_lesson_count.errors.append('쿠폰 레슨은 타석 횟수와 레슨 횟수가 동일해야 합니다.')
+                is_valid = False
+            if not self.default_validity_days.data: # 쿠폰의 유효기간
+                self.default_validity_days.errors.append('쿠폰 레슨은 기본 유효기간(일 수)이 필수입니다.')
+                is_valid = False
+        elif category == TicketCategory.LESSON_ADD:
+            if not self.total_lesson_count.data:
+                self.total_lesson_count.errors.append('레슨 추가는 총 레슨 횟수가 필수입니다.')
+                is_valid = False
+            # 레슨 추가는 유효기간 없음 (default_validity_days 불필요)
+        elif category == TicketCategory.COMBO:
+            if not self.duration_days.data:
+                self.duration_days.errors.append('종합권은 유효 기간(일 수)이 필수입니다.')
+                is_valid = False
+            if not self.total_lesson_count.data: # 종합권은 레슨 횟수가 필수라고 가정
+                self.total_lesson_count.errors.append('종합권은 총 레슨 횟수가 필수입니다.')
+                is_valid = False
+        return is_valid

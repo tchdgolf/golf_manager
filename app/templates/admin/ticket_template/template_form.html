@@ -1,0 +1,108 @@
+{% extends "base.html" %}
+{% import "bootstrap/wtf.html" as wtf %}
+
+{% block title %}{{ title }} - 관리자{% endblock %}
+
+{% block content %}
+<h2 class="mb-4">{{ title }}</h2>
+
+<form method="POST" novalidate>
+    {{ form.hidden_tag() }} {# CSRF 토큰 등 #}
+
+    <div class="row mb-3">
+        <div class="col-md-6">
+            {{ wtf.form_field(form.name, class="form-control form-control-lg") }}
+        </div>
+        <div class="col-md-6">
+            {{ wtf.form_field(form.category) }}
+        </div>
+    </div>
+
+    <fieldset class="mb-3 p-3 border rounded">
+        <legend class="fs-6 fw-bold">기간 정보 (기간권, 종합권)</legend>
+        {{ wtf.form_field(form.duration_days) }}
+    </fieldset>
+
+    <fieldset class="mb-3 p-3 border rounded">
+        <legend class="fs-6 fw-bold">횟수 정보 (횟수권, 쿠폰, 레슨추가, 종합권)</legend>
+        <div class="row">
+            <div class="col-md-6">
+                {{ wtf.form_field(form.total_count) }}
+            </div>
+            <div class="col-md-6">
+                {{ wtf.form_field(form.total_lesson_count) }}
+            </div>
+        </div>
+    </fieldset>
+
+     <fieldset class="mb-3 p-3 border rounded">
+        <legend class="fs-6 fw-bold">횟수제 상품 기본 유효 기간</legend>
+        {{ wtf.form_field(form.default_validity_days) }}
+    </fieldset>
+
+    <div class="row mb-3">
+        <div class="col-md-6">
+            {{ wtf.form_field(form.price) }}
+        </div>
+        <div class="col-md-6">
+             {{ wtf.form_field(form.is_active) }}
+        </div>
+    </div>
+
+    {{ wtf.form_field(form.description, rows=3) }}
+
+    <div class="mt-4">
+        {{ wtf.form_field(form.submit, class="btn btn-primary btn-lg") }}
+        <a href="{{ url_for('admin.list_ticket_templates') }}" class="btn btn-secondary ms-2">
+            <i class="bi bi-list-ul"></i> 목록으로 돌아가기
+        </a>
+    </div>
+</form>
+{% endblock %}
+
+{% block scripts %}
+{{ super() }}
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.10.5/font/bootstrap-icons.css">
+{# 카테고리 선택에 따라 필드 활성화/비활성화 JavaScript (선택적) #}
+<script>
+    document.addEventListener('DOMContentLoaded', function() {
+        const categoryField = document.getElementById('category');
+        const durationDaysField = document.getElementById('duration_days');
+        const totalCountField = document.getElementById('total_count');
+        const totalLessonCountField = document.getElementById('total_lesson_count');
+        const defaultValidityDaysField = document.getElementById('default_validity_days');
+
+        function toggleFields() {
+            const category = categoryField.value;
+
+            // 기본적으로 모든 관련 필드 비활성화/숨김 또는 읽기 전용 처리
+            // 여기서는 간단히 입력 가능 여부만 조절
+            durationDaysField.disabled = true;
+            totalCountField.disabled = true;
+            totalLessonCountField.disabled = true;
+            defaultValidityDaysField.disabled = true;
+
+            if (category === 'PERIOD') { // TicketCategory.PERIOD.name
+                durationDaysField.disabled = false;
+            } else if (category === 'COUNT') {
+                totalCountField.disabled = false;
+                defaultValidityDaysField.disabled = false;
+            } else if (category === 'COUPON') {
+                totalCountField.disabled = false;
+                totalLessonCountField.disabled = false;
+                defaultValidityDaysField.disabled = false;
+            } else if (category === 'LESSON_ADD') {
+                totalLessonCountField.disabled = false;
+            } else if (category === 'COMBO') {
+                durationDaysField.disabled = false;
+                totalLessonCountField.disabled = false;
+            }
+        }
+
+        if (categoryField) {
+            categoryField.addEventListener('change', toggleFields);
+            toggleFields(); // 페이지 로드 시 초기 상태 설정
+        }
+    });
+</script>
+{% endblock %}

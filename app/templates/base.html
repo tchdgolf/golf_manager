@@ -44,7 +44,8 @@
                                 <li><a class="dropdown-item" href="{{ url_for('admin.list_users') }}">회원 관리</a></li>
                                 <li><a class="dropdown-item" href="{{ url_for('admin.list_pros') }}">프로 관리</a></li>
                                 <li><a class="dropdown-item" href="{{ url_for('admin.list_booths') }}">타석 관리</a></li> {# 링크 추가 #}
-                                <li><a class="dropdown-item" href="#">이용권 관리</a></li> {# 향후 구현 #}
+                                <li><a class="dropdown-item" href="{{ url_for('admin.list_ticket_templates') }}">이용권 템플릿 관리</a></li> {# 링크 추가 #}
+                                <li><a class="dropdown-item" href="#">이용권 발급/관리</a></li> {# 향후 구현 #}
                                 <li><hr class="dropdown-divider"></li>
                                 <li><a class="dropdown-item" href="#">관리자 대시보드</a></li> {# 향후 구현 #}
                             </ul>
