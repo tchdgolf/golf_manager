@@ -8,6 +8,14 @@ from app.models.enums import BoothSystemType # Enum 임포트
 from app.models.ticket_template import TicketCategory 
 
 
+def coerce_int_or_none(value):
+    if value == '':
+        return None
+    try:
+        return int(value)
+    except ValueError:
+        return None # 또는 raise ValidationError('유효한 숫자가 아닙니다.')
+
 
 class BoothForm(FlaskForm):
     """타석(부스) 등록/수정 폼"""
@@ -181,7 +189,7 @@ class TicketIssueForm(FlaskForm):
     user_id = SelectField('회원 선택', coerce=int, validators=[DataRequired(message="회원을 선택해주세요.")])
     # user_id의 choices는 라우트에서 동적으로 채워줍니다.
 
-    ticket_template_id = SelectField('템플릿 선택 (선택 사항)', coerce=int, validators=[Optional()])
+    ticket_template_id = SelectField('템플릿 선택 (선택 사항)', coerce=coerce_int_or_none, validators=[Optional()])
     # ticket_template_id의 choices도 라우트에서 동적으로 채워줍니다.
 
     # --- 템플릿 미사용 시 또는 템플릿 정보 오버라이드 시 직접 입력할 필드들 ---
@@ -206,7 +214,7 @@ class TicketIssueForm(FlaskForm):
                                       description="횟수제 상품 직접 입력 시 유효 기간.")
     # --- 여기까지 직접 입력 필드 ---
 
-    pro_id = SelectField('담당 프로 (선택 사항)', coerce=int, validators=[Optional()])
+    pro_id = SelectField('담당 프로 (선택 사항)', coerce=coerce_int_or_none, validators=[Optional()])
     # pro_id의 choices도 라우트에서 동적으로 채워줍니다.
 
     price = IntegerField('실제 판매 가격 (원)', validators=[Optional(), NumberRange(min=0)])
