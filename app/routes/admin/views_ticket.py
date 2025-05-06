@@ -252,6 +252,25 @@ def edit_ticket(ticket_id):
 
 
 
+# 특정 티켓의 홀딩 목록 조회 API (모달용)
+@bp.route('/api/ticket/<int:ticket_id>/holdings')
+def get_ticket_holdings(ticket_id):
+    ticket = db.session.get(Ticket, ticket_id)
+    if not ticket:
+        return jsonify({'error': 'Ticket not found'}), 404
+
+    holdings_data = []
+    for holding in ticket.holdings.order_by(Holding.start_date.asc()).all():
+        holdings_data.append({
+            'id': holding.id,
+            'start_date': holding.start_date.isoformat(),
+            'end_date': holding.end_date.isoformat(),
+            'duration_days': holding.duration_days,
+            'reason': holding.reason
+        })
+    # 템플릿 렌더링 대신 JSON 반환
+    return jsonify({'holdings': holdings_data})
+
 # 특정 홀딩 정보 조회 API (수정 폼 채우기용)
 @bp.route('/api/holding/<int:holding_id>')
 def get_holding_info(holding_id):
@@ -265,6 +284,9 @@ def get_holding_info(holding_id):
         'end_date': holding.end_date.isoformat(),
         'reason': holding.reason
     })
+
+
+
 
 # 홀딩 추가
 @bp.route('/ticket/<int:ticket_id>/holding/add', methods=['POST'])
