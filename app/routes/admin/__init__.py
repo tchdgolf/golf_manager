@@ -20,4 +20,4 @@ def before_request():
 # Pro, Booth, User 관련 라우트 파일들을 여기서 임포트하여 블루프린트에 등록
 from . import views_pro
 from . import views_booth
-#from . import views_user
+from . import views_user

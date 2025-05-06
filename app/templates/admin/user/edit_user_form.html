@@ -1,0 +1,28 @@
+{% extends "base.html" %}
+{% import "bootstrap/wtf.html" as wtf %}
+
+{% block title %}{{ title }} - 관리자{% endblock %}
+
+{% block content %}
+<h2 class="mb-4">{{ title }}: {{ user.name }} ({{ user.phone }})</h2>
+
+<div class="row">
+    <div class="col-md-6">
+        {{ wtf.quick_form(form, button_map={'submit': 'primary'}) }}
+    </div>
+</div>
+
+<div class="mt-4">
+    <a href="{{ url_for('admin.view_user', user_id=user.id) }}" class="btn btn-secondary me-2">
+        <i class="bi bi-eye"></i> 상세 정보로 돌아가기
+    </a>
+    <a href="{{ url_for('admin.list_users') }}" class="btn btn-outline-secondary">
+        <i class="bi bi-list-ul"></i> 회원 목록으로 돌아가기
+    </a>
+</div>
+{% endblock %}
+
+{% block scripts %}
+{{ super() }}
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.10.5/font/bootstrap-icons.css">
+{% endblock %}

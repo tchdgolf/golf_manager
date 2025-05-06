@@ -1,0 +1,94 @@
+{% extends "base.html" %}
+{% import "bootstrap/wtf.html" as wtf %} {# 비밀번호 초기화 폼 사용 시 필요 #}
+
+{% block title %}{{ title }} - 관리자{% endblock %}
+
+{% block content %}
+<div class="d-flex justify-content-between flex-wrap flex-md-nowrap align-items-center pt-3 pb-2 mb-3 border-bottom">
+    <h1 class="h2">{{ title }}</h1>
+    <div class="btn-toolbar mb-2 mb-md-0">
+        <a href="{{ url_for('admin.edit_user', user_id=user.id) }}" class="btn btn-sm btn-outline-primary me-2">
+            <i class="bi bi-pencil-square"></i> 정보 수정
+        </a>
+        <a href="{{ url_for('admin.list_users') }}" class="btn btn-sm btn-outline-secondary">
+            <i class="bi bi-list-ul"></i> 회원 목록
+        </a>
+    </div>
+</div>
+
+<div class="row">
+    <div class="col-md-6">
+        <h4>기본 정보</h4>
+        <table class="table table-bordered">
+            <tbody>
+                <tr>
+                    <th scope="row" style="width: 30%;">회원 ID</th>
+                    <td>{{ user.id }}</td>
+                </tr>
+                <tr>
+                    <th scope="row">이름</th>
+                    <td>{{ user.name }}</td>
+                </tr>
+                <tr>
+                    <th scope="row">연락처</th>
+                    <td>{{ user.phone }} ({{ user.phone_last4 }})</td>
+                </tr>
+                <tr>
+                    <th scope="row">관리자 여부</th>
+                    <td>
+                        {% if user.is_admin %}
+                            <span class="badge bg-info">관리자</span>
+                        {% else %}
+                            <span class="badge bg-light text-dark">일반 회원</span>
+                        {% endif %}
+                    </td>
+                </tr>
+                <tr>
+                    <th scope="row">가입일</th>
+                    <td>{{ user.created_at.strftime('%Y-%m-%d %H:%M:%S') if user.created_at else '-' }}</td>
+                </tr>
+                <tr>
+                    <th scope="row">마지막 로그인</th>
+                    <td>{{ user.last_login_at.strftime('%Y-%m-%d %H:%M:%S') if user.last_login_at else '기록 없음' }}</td>
+                </tr>
+                <tr>
+                    <th scope="row">메모</th>
+                    <td>{{ user.memo | nl2br if user.memo else '-' }}</td> {# nl2br: 줄바꿈 표시 #}
+                </tr>
+            </tbody>
+        </table>
+
+        <h4 class="mt-4">비밀번호 관리</h4>
+        <p>회원의 비밀번호를 '0000'으로 초기화할 수 있습니다.</p>
+        <form action="{{ url_for('admin.reset_user_password', user_id=user.id) }}" method="POST" onsubmit="return confirm('정말로 \'{{ user.name }}\' 회원의 비밀번호를 \'0000\'으로 초기화하시겠습니까?');">
+            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+            {{ wtf.form_field(password_reset_form.submit, class="btn btn-warning") }}
+        </form>
+
+    </div>
+
+    <div class="col-md-6">
+        <h4 class="mt-4 mt-md-0">이용권 정보 (향후 구현)</h4>
+        <p class="text-muted">이곳에 회원이 보유한 이용권 목록이 표시됩니다.</p>
+        {# 예시:
+        <ul class="list-group">
+            <li class="list-group-item">기간권 (2025-06-01 ~ 2025-07-01)</li>
+            <li class="list-group-item">횟수권 (잔여 8회 / 만료 2025-08-15)</li>
+        </ul>
+        #}
+
+        <h4 class="mt-4">예약 내역 (향후 구현)</h4>
+        <p class="text-muted">이곳에 회원의 최근 예약 내역이 표시됩니다.</p>
+
+        <h4 class="mt-4">총 잔여 레슨 횟수 (향후 구현)</h4>
+        <p><strong>{{ user.remaining_lesson_total }} 회</strong> (이용권과 별도로 관리되는 총 레슨 횟수)</p>
+    </div>
+</div>
+
+
+{% endblock %}
+
+{% block scripts %}
+{{ super() }}
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.10.5/font/bootstrap-icons.css">
+{% endblock %}

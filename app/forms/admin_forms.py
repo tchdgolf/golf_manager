@@ -1,8 +1,8 @@
 # app/forms/admin_forms.py
-from wtforms import StringField, SubmitField, SelectField, BooleanField, TextAreaField
+from wtforms import StringField, SubmitField, SelectField, BooleanField, TextAreaField, PasswordField # PasswordField 추가
 from flask_wtf import FlaskForm
-from wtforms.validators import DataRequired, Length, ValidationError
-from app.models import Pro, Booth # Booth 모델 임포트 # Pro 모델 임포트 (중복 검사용)
+from wtforms.validators import DataRequired, Length, ValidationError, Email # Email 추가 (필요시)
+from app.models import Pro, Booth, User # Booth 모델 임포트 # Pro 모델 임포트 (중복 검사용)
 from app.models.enums import BoothSystemType # Enum 임포트
 
 
@@ -54,4 +54,31 @@ class ProForm(FlaskForm):
         if pro:
             raise ValidationError('이미 등록된 프로 이름입니다.')
 
-# Booth, User 관련 폼들도 나중에 여기에 추가...
+
+class UserEditForm(FlaskForm):
+    """회원 정보 수정 폼 (관리자용)"""
+    name = StringField('이름', validators=[DataRequired(), Length(min=2, max=100)])
+    # phone 필드는 고유 식별자이므로 여기서 수정하지 않음 (필요시 별도 기능)
+    memo = TextAreaField('메모')
+    is_admin = BooleanField('관리자 권한 부여')
+    submit = SubmitField('정보 수정')
+
+    # 관리자 권한 변경 시 자기 자신을 일반 사용자로 변경하는 것을 막는 로직 (선택적)
+    def __init__(self, current_user_id=None, editing_user_id=None, *args, **kwargs):
+        super(UserEditForm, self).__init__(*args, **kwargs)
+        self.current_user_id = current_user_id
+        self.editing_user_id = editing_user_id
+
+    def validate_is_admin(self, is_admin_field):
+        # 현재 로그인한 관리자가 자기 자신의 관리자 권한을 해제하려고 할 때
+        if self.current_user_id == self.editing_user_id and not is_admin_field.data:
+            # 마지막 관리자인지 확인 (선택적 심화 로직)
+            admin_count = User.query.filter_by(is_admin=True).count()
+            if admin_count <= 1:
+                raise ValidationError('마지막 관리자의 권한은 해제할 수 없습니다. 다른 관리자를 먼저 지정해주세요.')
+            # raise ValidationError('자기 자신의 관리자 권한은 여기서 해제할 수 없습니다.')
+
+
+class UserPasswordResetForm(FlaskForm):
+    """회원 비밀번호 초기화 폼 (관리자용)"""
+    submit = SubmitField('비밀번호를 \'0000\'으로 초기화')

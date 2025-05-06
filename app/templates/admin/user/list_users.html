@@ -1,0 +1,105 @@
+{% extends "base.html" %}
+{% from "_pagination_helper.html" import render_pagination %}
+
+{% block title %}{{ title }} - 관리자{% endblock %}
+
+{% block content %}
+<h2 class="mb-4">{{ title }}</h2>
+
+{# 검색 폼 #}
+<form method="GET" action="{{ url_for('admin.list_users') }}" class="mb-4">
+    <div class="row g-3 align-items-center">
+        <div class="col-auto">
+            <label for="search" class="col-form-label">검색 (이름 또는 연락처):</label>
+        </div>
+        <div class="col-auto">
+            <input type="text" id="search" name="search" class="form-control" value="{{ search_term or '' }}">
+        </div>
+        <div class="col-auto">
+            <button type="submit" class="btn btn-primary">검색</button>
+            {% if search_term %}
+            <a href="{{ url_for('admin.list_users') }}" class="btn btn-secondary ms-2">초기화</a>
+            {% endif %}
+        </div>
+    </div>
+</form>
+
+<div class="mb-3">
+    <a href="{{ url_for('auth.register') }}" class="btn btn-success">
+        <i class="bi bi-person-plus-fill"></i> 신규 회원 등록
+    </a>
+</div>
+
+{% if users %}
+<div class="table-responsive">
+    <table class="table table-striped table-hover">
+        <thead>
+            <tr>
+                <th scope="col">#</th>
+                <th scope="col">이름</th>
+                <th scope="col">연락처</th>
+                <th scope="col">관리자</th>
+                <th scope="col">가입일</th>
+                <th scope="col">마지막 로그인</th>
+                <th scope="col">메모</th>
+                <th scope="col">관리</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for user in users %}
+            <tr>
+                <th scope="row">{{ loop.index + pagination.per_page * (pagination.page - 1) }}</th>
+                <td>
+                    <a href="{{ url_for('admin.view_user', user_id=user.id) }}">{{ user.name }}</a>
+                </td>
+                <td>{{ user.phone }}</td>
+                <td>
+                    {% if user.is_admin %}
+                        <span class="badge bg-info">관리자</span>
+                    {% else %}
+                        <span class="badge bg-light text-dark">일반</span>
+                    {% endif %}
+                </td>
+                <td>{{ user.created_at.strftime('%Y-%m-%d %H:%M') if user.created_at else '-' }}</td>
+                <td>{{ user.last_login_at.strftime('%Y-%m-%d %H:%M') if user.last_login_at else '-' }}</td>
+                <td>{{ user.memo | truncate(20) if user.memo else '-' }}</td>
+                <td>
+                    <a href="{{ url_for('admin.view_user', user_id=user.id) }}" class="btn btn-sm btn-outline-info me-1" title="상세보기">
+                        <i class="bi bi-eye"></i>
+                    </a>
+                    <a href="{{ url_for('admin.edit_user', user_id=user.id) }}" class="btn btn-sm btn-outline-primary" title="수정">
+                        <i class="bi bi-pencil-square"></i>
+                    </a>
+                    {# 회원 삭제는 정책상 보류 또는 매우 신중하게 추가 #}
+                    {#
+                    <form action="#" method="POST" class="d-inline ms-1" onsubmit="return confirm('정말로 \'{{ user.name }}\' 회원을 삭제하시겠습니까? 모든 데이터가 삭제될 수 있습니다.');">
+                        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                        <button type="submit" class="btn btn-sm btn-outline-danger" title="삭제">
+                            <i class="bi bi-trash"></i>
+                        </button>
+                    </form>
+                    #}
+                </td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+</div>
+
+{{ render_pagination(pagination, 'admin.list_users', search=search_term) }}
+
+{% else %}
+<div class="alert alert-warning" role="alert">
+    {% if search_term %}
+        "{{ search_term }}" 검색 결과에 해당하는 회원이 없습니다.
+    {% else %}
+        등록된 회원이 없습니다.
+    {% endif %}
+</div>
+{% endif %}
+{% endblock %}
+
+{% block scripts %}
+{{ super() }}
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.10.5/font/bootstrap-icons.css">
+{% endblock %}
