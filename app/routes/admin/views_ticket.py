@@ -150,3 +150,41 @@ def get_ticket_template_info(template_id):
             'price': template.price
         })
     return jsonify({'error': 'Template not found'}), 404
+
+
+# --- ▼ 회원 정보 및 보유 티켓 목록 API 추가 ▼ ---
+@bp.route('/api/user/<int:user_id>/tickets')
+def get_user_tickets_info(user_id):
+    user = db.session.get(User, user_id)
+    if not user:
+        return jsonify({'error': 'User not found'}), 404
+
+    tickets_data = []
+    # User 모델에 tickets 관계가 설정되어 있어야 함 (이전에 Ticket 모델에 user 관계 설정함)
+    # 활성화된 티켓, 만료일 순 정렬 등 필요에 따라 쿼리 수정
+    user_tickets = user.tickets.order_by(Ticket.expiry_date.desc(), Ticket.created_at.desc()).all()
+
+    for ticket in user_tickets:
+        tickets_data.append({
+            'id': ticket.id,
+            'name': ticket.name,
+            'start_date': ticket.start_date.isoformat() if ticket.start_date else None,
+            'expiry_date': ticket.expiry_date.isoformat() if ticket.expiry_date else None,
+            'total_taseok_count': ticket.total_taseok_count,
+            'remaining_taseok_count': ticket.remaining_taseok_count,
+            'total_lesson_count': ticket.total_lesson_count,
+            'remaining_lesson_count': ticket.remaining_lesson_count,
+            'is_active': ticket.is_active,
+            'is_used_up': ticket.is_used_up,
+            'is_expired': ticket.is_expired
+            # 필요시 pro 정보 등 추가
+        })
+
+    return jsonify({
+        'user_id': user.id,
+        'name': user.name,
+        'phone': user.phone,
+        'master_expiry_date': user.master_expiry_date.isoformat() if user.master_expiry_date else None,
+        'remaining_lesson_total': user.remaining_lesson_total,
+        'tickets': tickets_data
+    })

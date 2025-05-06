@@ -179,16 +179,18 @@
         function loadUserTickets(userId) {
             const ticketsListUl = document.getElementById('ajax_tickets_list_ul');
             const noTicketsMessage = document.getElementById('no_tickets_message');
-            const initialTicketsList = document.getElementById('current_tickets_list'); // 초기 로드된 목록
+            const initialTicketsList = document.getElementById('current_tickets_list');
             const userInfoPlaceholder = document.getElementById('user_info_placeholder');
             const userDetailsContent = document.getElementById('user_details_content');
 
-
-            if (initialTicketsList) initialTicketsList.style.display = 'none'; // 초기 목록 숨김
-            ticketsListUl.innerHTML = ''; // 기존 Ajax 목록 비우기
+            // 초기화
+            if (initialTicketsList) initialTicketsList.style.display = 'none';
+            ticketsListUl.innerHTML = '';
             ticketsListUl.style.display = 'none';
-            if (noTicketsMessage) noTicketsMessage.style.display = 'block';
-
+            if (noTicketsMessage) {
+                noTicketsMessage.textContent = '회원을 선택하면 여기에 정보가 표시됩니다.'; // 기본 메시지
+                noTicketsMessage.style.display = 'block';
+            }
             userInfoPlaceholder.style.display = 'block';
             userDetailsContent.style.display = 'none';
 
@@ -197,23 +199,35 @@
                 return;
             }
 
-            // 여기에 회원 상세 정보 API 호출도 추가 가능
-            // fetch(`/admin/api/user/${userId}/details`) ...
-
-            fetch(`/admin/api/user/${userId}/tickets`) // 이 API는 아직 만들지 않음!
-                .then(response => response.json())
+            fetch(`/admin/api/user/${userId}/tickets`)
+                .then(response => {
+                    if (!response.ok) { // 404 등 에러 응답 처리
+                        throw new Error(`HTTP error! status: ${response.status}`);
+                    }
+                    return response.json();
+                })
                 .then(data => {
+                    if (data.error) { // API 내부에서 정의한 에러
+                        console.error("API Error:", data.error);
+                        if (noTicketsMessage) noTicketsMessage.textContent = data.error;
+                        // 사용자 정보라도 표시
+                        document.getElementById('user_info_name').textContent = userSelect.options[userSelect.selectedIndex] ? userSelect.options[userSelect.selectedIndex].text.split(' (')[0] : '-';
+                        document.getElementById('user_info_phone').textContent = userSelect.options[userSelect.selectedIndex] ? userSelect.options[userSelect.selectedIndex].text.match(/\(([^)]+)\)/)[1] : '-';
+                        userInfoPlaceholder.style.display = 'none';
+                        userDetailsContent.style.display = 'block';
+                        return;
+                    }
+
+                    // 사용자 정보 업데이트
+                    document.getElementById('user_info_name').textContent = data.name || '-';
+                    document.getElementById('user_info_phone').textContent = data.phone || '-';
+                    document.getElementById('user_info_master_expiry').textContent = data.master_expiry_date ? new Date(data.master_expiry_date).toLocaleDateString() : '없음';
+                    document.getElementById('user_info_total_lesson').textContent = data.remaining_lesson_total !== null ? data.remaining_lesson_total : '0';
+
                     userInfoPlaceholder.style.display = 'none';
                     userDetailsContent.style.display = 'block';
-                    // 임시로 API 없으므로 이름/연락처만 표시 (선택된 user_id로 user_select의 text를 파싱)
-                    const selectedOption = userSelect.options[userSelect.selectedIndex];
-                    document.getElementById('user_info_name').textContent = selectedOption ? selectedOption.text.split(' (')[0] : '-';
-                    document.getElementById('user_info_phone').textContent = selectedOption ? selectedOption.text.match(/\(([^)]+)\)/)[1] : '-';
-                    // master_expiry_date, remaining_lesson_total 은 API로 가져와야 함
-                    document.getElementById('user_info_master_expiry').textContent = data.master_expiry_date || '정보 없음';
-                    document.getElementById('user_info_total_lesson').textContent = data.remaining_lesson_total !== null ? data.remaining_lesson_total : '정보 없음';
 
-
+                    // 티켓 목록 업데이트
                     if (data.tickets && data.tickets.length > 0) {
                         if (noTicketsMessage) noTicketsMessage.style.display = 'none';
                         ticketsListUl.style.display = 'block';
@@ -225,7 +239,11 @@
                             const lessonInfo = `${ticket.remaining_lesson_count !== null ? ticket.remaining_lesson_count : '-'}/${ticket.total_lesson_count !== null ? ticket.total_lesson_count : '-'}`;
 
                             li.innerHTML = `
-                                ${ticket.name} (만료: ${expiryDate})
+                                <strong class="${!ticket.is_active || ticket.is_expired || ticket.is_used_up ? 'text-muted' : ''}">${ticket.name}</strong>
+                                (만료: ${expiryDate})
+                                ${!ticket.is_active ? '<span class="badge bg-secondary ms-1">비활성</span>' : ''}
+                                ${ticket.is_expired ? '<span class="badge bg-danger ms-1">만료</span>' : ''}
+                                ${ticket.is_used_up ? '<span class="badge bg-warning text-dark ms-1">소진</span>' : ''}
                                 <br>
                                 <small class="text-muted">
                                     타석: ${taseokInfo} | 레슨: ${lessonInfo}
@@ -234,17 +252,21 @@
                             ticketsListUl.appendChild(li);
                         });
                     } else {
-                         if (noTicketsMessage) noTicketsMessage.textContent = '보유한 이용권이 없습니다.';
+                            if (noTicketsMessage) noTicketsMessage.textContent = '보유한 이용권이 없습니다.';
+                            if (noTicketsMessage) noTicketsMessage.style.display = 'block';
                     }
                 })
                 .catch(error => {
                     console.error('Error fetching user tickets:', error);
                     if (noTicketsMessage) noTicketsMessage.textContent = '이용권 정보를 가져오는 데 실패했습니다.';
-                    userInfoPlaceholder.style.display = 'none'; // 오류 시에도 플레이스홀더 숨김
-                    userDetailsContent.style.display = 'block'; // 이름/연락처라도 보이게
-                     document.getElementById('user_info_name').textContent = userSelect.options[userSelect.selectedIndex].text.split(' (')[0];
-                    document.getElementById('user_info_phone').textContent = userSelect.options[userSelect.selectedIndex].text.match(/\(([^)]+)\)/)[1];
-
+                    // 사용자 이름/연락처만 표시 (오류 시)
+                    const selectedOption = userSelect.options[userSelect.selectedIndex];
+                    document.getElementById('user_info_name').textContent = selectedOption ? selectedOption.text.split(' (')[0] : '-';
+                    document.getElementById('user_info_phone').textContent = selectedOption ? selectedOption.text.match(/\(([^)]+)\)/)[1] : '-';
+                    document.getElementById('user_info_master_expiry').textContent = '오류';
+                    document.getElementById('user_info_total_lesson').textContent = '오류';
+                    userInfoPlaceholder.style.display = 'none';
+                    userDetailsContent.style.display = 'block';
                 });
         }
 
