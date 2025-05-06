@@ -1,11 +1,12 @@
 {# app/templates/_pagination_helper.html #}
-{% macro render_pagination(pagination, endpoint, fragment='') %}
+{% macro render_pagination(pagination, endpoint, fragment='', **kwargs) %} {# **kwargs 추가 #}
   {% if pagination and pagination.pages > 1 %}
     <nav aria-label="Page navigation">
       <ul class="pagination justify-content-center">
         {# Previous page link #}
         <li class="page-item {% if not pagination.has_prev %}disabled{% endif %}">
-          <a class="page-link" href="{% if pagination.has_prev %}{{ url_for(endpoint, page=pagination.prev_num, **request.view_args) }}{{ fragment }}{% else %}#{% endif %}">«</a>
+          {# url_for에 **kwargs 전달 #}
+          <a class="page-link" href="{% if pagination.has_prev %}{{ url_for(endpoint, page=pagination.prev_num, **kwargs) }}{{ fragment }}{% else %}#{% endif %}">«</a>
         </li>
 
         {# Page numbers #}
@@ -13,7 +14,8 @@
           {% if page_num %}
             {% if page_num != pagination.page %}
               <li class="page-item">
-                <a class="page-link" href="{{ url_for(endpoint, page=page_num, **request.view_args) }}{{ fragment }}">{{ page_num }}</a>
+                {# url_for에 **kwargs 전달 #}
+                <a class="page-link" href="{{ url_for(endpoint, page=page_num, **kwargs) }}{{ fragment }}">{{ page_num }}</a>
               </li>
             {% else %}
               <li class="page-item active" aria-current="page">
@@ -21,14 +23,14 @@
               </li>
             {% endif %}
           {% else %}
-            {# Ellipsis for skipped pages #}
             <li class="page-item disabled"><span class="page-link">…</span></li>
           {% endif %}
         {% endfor %}
 
         {# Next page link #}
         <li class="page-item {% if not pagination.has_next %}disabled{% endif %}">
-          <a class="page-link" href="{% if pagination.has_next %}{{ url_for(endpoint, page=pagination.next_num, **request.view_args) }}{{ fragment }}{% else %}#{% endif %}">»</a>
+          {# url_for에 **kwargs 전달 #}
+          <a class="page-link" href="{% if pagination.has_next %}{{ url_for(endpoint, page=pagination.next_num, **kwargs) }}{{ fragment }}{% else %}#{% endif %}">»</a>
         </li>
       </ul>
     </nav>
