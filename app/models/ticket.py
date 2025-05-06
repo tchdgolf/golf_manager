@@ -38,7 +38,7 @@ class Ticket(db.Model):
     user = db.relationship('User', backref=db.backref('tickets', lazy='dynamic'))
     ticket_template = db.relationship('TicketTemplate', backref=db.backref('issued_tickets', lazy='dynamic'))
     pro = db.relationship('Pro', backref=db.backref('assigned_tickets', lazy='dynamic'))
-    # holdings = db.relationship('Holding', backref='ticket', lazy='dynamic', cascade="all, delete-orphan") # 아래 Holding 모델 정의 후 추가
+    holdings = db.relationship('Holding', backref='ticket', lazy='dynamic', cascade="all, delete-orphan")
     # bookings_primary = db.relationship('Booking', foreign_keys='Booking.primary_ticket_id', backref='primary_for_ticket', lazy='dynamic') # 예약 시 이 티켓이 주 사용 티켓
     # bookings_taseok = db.relationship('Booking', foreign_keys='Booking.used_taseok_ticket_id', backref='used_for_taseok', lazy='dynamic') # 예약 시 타석 차감용으로 사용
     # bookings_lesson = db.relationship('Booking', foreign_keys='Booking.used_lesson_ticket_id', backref='used_for_lesson', lazy='dynamic') # 예약 시 레슨 차감용으로 사용
