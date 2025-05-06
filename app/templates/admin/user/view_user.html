@@ -322,7 +322,7 @@
                 if (!holdingId || !ticketId) return;
 
                 if (confirm(`정말로 이 홀딩(ID: ${holdingId})을 삭제하시겠습니까? 이용권 만료일이 변경됩니다.`)) {
-                    const csrfToken = addHoldingForm.querySelector('input[name="csrf_token"]').value; // 폼에서 CSRF 토큰 가져오기
+                    const csrfToken = holdingForm.querySelector('input[name="csrf_token"]').value; // 폼에서 CSRF 토큰 가져오기
 
                     fetch(`/admin/holding/delete/${holdingId}`, {
                         method: 'POST',
