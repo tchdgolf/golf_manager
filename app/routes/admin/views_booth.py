@@ -65,21 +65,6 @@ def edit_booth(booth_id):
 
                 form.name.data = booth.name
                 form.system_type.data = booth.system_type.value  # <<< Enum 멤버의 'value' (문자열)를 할당
-                print(f"form.system_type.data (after assignment): {form.system_type.data}, type: {type(form.system_type.data)}")
-                print(f"form.system_type.choices: {form.system_type.choices}")
-
-                # 렌더링 직전에 폼 필드의 'data'와 'choices'를 비교하는 로직 흉내
-                for choice_obj, choice_label in form.system_type.choices:
-                    # choice_obj는 Enum 객체, form.system_type.data 도 Enum 객체여야 함
-                    is_selected_by_value = (choice_obj.value == form.system_type.data.value if form.system_type.data else False) # 값 비교
-                    is_selected_by_object = (choice_obj is form.system_type.data if form.system_type.data else False) # 객체 비교 (동일 참조)
-                    is_selected_by_equality = (choice_obj == form.system_type.data if form.system_type.data else False) # 객체 동등성 비교 (__eq__ 메서드)
-
-                    print(f"  Choice: {choice_label} (Obj: {choice_obj}, Value: {choice_obj.value})")
-                    print(f"    Selected by value? {is_selected_by_value}")
-                    print(f"    Selected by object identity? {is_selected_by_object}")
-                    print(f"    Selected by equality? {is_selected_by_equality}")
-
                 form.is_available.data = booth.is_available
                 form.memo.data = booth.memo
 
