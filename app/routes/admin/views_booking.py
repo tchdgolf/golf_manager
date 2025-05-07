@@ -24,8 +24,10 @@ def list_bookings():
     bookings = pagination.items
 
     return render_template('booking/list_bookings.html',
-                           bookings=bookings, pagination=pagination,
-                           title="전체 예약 목록")
+                           bookings=bookings,
+                           pagination=pagination,
+                           title="전체 예약 목록",
+                           BookingStatus=BookingStatus)
 
 # 관리자 예약 생성 페이지 (GET)
 @bp.route('/bookings/create', methods=['GET'])
@@ -41,12 +43,15 @@ def create_booking_form():
     form.booth_id.choices = [('', '--- 타석 선택 ---')] + [(b.id, b.name) for b in booths]
     form.pro_id.choices = [('', '--- 프로 선택 (레슨 시) ---')] + [(p.id, p.name) for p in pros]
 
-    # booking_type choices는 폼 정의에서 이미 설정됨
+    # 오늘 날짜를 시작 날짜 기본값으로 설정 (선택적)
+    if not form.start_date.data:
+         form.start_date.data = datetime.date.today()
 
     return render_template('booking/create_booking_form.html',
                            title="관리자 예약 생성",
                            form=form,
-                           BookingType=BookingType) # 폼 객체만 전달
+                           BookingType=BookingType) # JS에서 비교 위해 전달
+
 
 # 관리자 예약 생성 처리 (POST)
 @bp.route('/bookings/create', methods=['POST'])
@@ -59,23 +64,32 @@ def create_booking_post():
     form.pro_id.choices = [('', '--- 프로 선택 (레슨 시) ---')] + [(p.id, p.name) for p in Pro.query.order_by(Pro.name).all()]
 
     if form.validate_on_submit():
+        # --- ▼ 날짜 및 시간 데이터 조합 ▼ ---
+        try:
+            start_dt = datetime.datetime.combine(
+                form.start_date.data,
+                datetime.time(hour=form.start_hour.data, minute=form.start_minute.data)
+            )
+            end_dt = start_dt + datetime.timedelta(minutes=form.duration.data)
+        except Exception as e:
+            flash(f"날짜 또는 시간 값 오류: {e}", "danger")
+            return render_template('booking/create_booking_form.html', title="관리자 예약 생성", form=form, BookingType=BookingType)
+        # --- ▲ 날짜 및 시간 데이터 조합 끝 ▲ ---
         # 폼 데이터 가져오기
         user_id = form.user_id.data
         booth_id = form.booth_id.data
-        pro_id = form.pro_id.data # 레슨 아닐 경우 None일 수 있음 (coerce_int_or_none 덕분)
-        start_time = form.start_time.data
-        end_time = form.end_time.data
+        pro_id = form.pro_id.data
         booking_type = form.booking_type.data
+        lesson_count_to_use = form.lesson_count_to_use.data or 1
         memo = form.memo.data
-        lesson_count_to_use = form.lesson_count_to_use.data or 1 # 값이 없으면 기본값 1
 
         # create_booking 서비스 함수 호출
         success, message, new_booking = create_booking(
             user_id=user_id,
             booth_id=booth_id,
             pro_id=pro_id,
-            start_time=start_time,
-            end_time=end_time,
+            start_time=start_dt,
+            end_time=end_dt,
             booking_type=booking_type,
             memo=memo,
             lesson_count_to_use=lesson_count_to_use if booking_type == BookingType.LESSON else 0
@@ -109,7 +123,10 @@ def view_booking(booking_id):
     if not booking:
         flash("예약 정보를 찾을 수 없습니다.", "warning")
         return redirect(url_for('admin.list_bookings'))
-    return render_template('booking/view_booking.html', booking=booking, title="예약 상세 정보")
+    return render_template('booking/view_booking.html',
+                           booking=booking,
+                           title="예약 상세 정보",
+                           BookingStatus=BookingStatus) # <<< BookingStatus 전달 추가!
 
 
 # 예약 취소 처리 (관리자)

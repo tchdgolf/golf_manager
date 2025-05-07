@@ -288,12 +288,23 @@ class BookingForm(FlaskForm):
     user_id = SelectField('회원', coerce=coerce_int_or_none, validators=[DataRequired(message="회원을 선택해주세요.")])
     booth_id = SelectField('타석', coerce=coerce_int_or_none, validators=[DataRequired(message="타석을 선택해주세요.")])
     booking_type = SelectField('예약 유형', coerce=BookingType, validators=[DataRequired()],
-                           choices=[(t, t.value) for t in BookingType],
-                           default=BookingType.TASEOK_ONLY) # 예: 기본값으로 '타석 이용' 설정
+                               choices=[(t.value, t.value) for t in BookingType], # <<< 수정!
+                               default=BookingType.TASEOK_ONLY) # 기본값 설정 유지
     # coerce 함수 적용
     pro_id = SelectField('담당 프로 (레슨 예약 시)', coerce=coerce_int_or_none, validators=[Optional()])
-    lesson_count_to_use = IntegerField('사용할 레슨 횟수', default=1, validators=[Optional(), NumberRange(min=1)],
-                                     description="레슨 예약 시 차감할 횟수 (기본 1회)")
+     # --- ▼ 시간 필드 분리 ▼ ---
+    start_date = DateField('시작 날짜', validators=[DataRequired()], format='%Y-%m-%d', widget=DateInput())
+    start_hour = SelectField('시작 시', coerce=int, validators=[DataRequired()],
+                             choices=[(h, f"{h:02d}") for h in range(0, 24)]) # 0시 ~ 23시
+    start_minute = SelectField('시작 분', coerce=int, validators=[DataRequired()],
+                               choices=[(m, f"{m:02d}") for m in range(0, 60, 10)]) # 00, 10, ..., 50
+
+    # 종료 시간 대신 이용 시간(분) 입력 받기 (더 편리할 수 있음)
+    duration = SelectField('이용 시간 (분)', coerce=int, validators=[DataRequired()],
+                           choices=[(m, f"{m}분") for m in range(30, 181, 10)], # 예: 30분 ~ 180분, 10분 단위
+                           default=70) # 기본 70분 선택
+    # --- ▲ 시간 필드 분리 끝 ▲ ---
+    lesson_count_to_use = IntegerField('레슨 횟수', default=1, validators=[Optional(), NumberRange(min=1)])
 
     # 날짜와 시간을 함께 입력받는 필드
     start_time = DateTimeLocalField('시작 시간', format='%Y-%m-%dT%H:%M', validators=[DataRequired()], widget=DateTimeLocalInput())
@@ -315,3 +326,11 @@ class BookingForm(FlaskForm):
         if self.booking_type.data == BookingType.LESSON and not field.data:
             raise ValidationError('레슨 예약 시 담당 프로를 선택해야 합니다.')
         
+
+     # --- ▼ 레슨 예약 시 최소 이용 시간 검증 ▼ ---
+    def validate_duration(self, field):
+        if self.booking_type.data == BookingType.LESSON:
+            # field.data 는 선택된 분(int) 값
+            if field.data is not None and field.data < 30:
+                 raise ValidationError('레슨 예약 시 최소 이용 시간은 30분입니다.')
+    # --- ▲ 레슨 예약 시 최소 이용 시간 검증 끝 ▲ ---
